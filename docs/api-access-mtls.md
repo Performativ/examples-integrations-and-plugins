@@ -13,47 +13,45 @@ mTLS (mutual TLS) provides stronger security than `client_secret_basic`:
 
 ## How It Works
 
-1. **Enable API access** for the plugin instance with mTLS auth
-2. Performativ issues a **client certificate** (PEM bundle with cert + private key)
-3. The plugin uses the certificate for **mTLS** when requesting tokens
+1. Your tenant admin enables mTLS access for your plugin instance via the Performativ UI
+2. You receive a **PEM bundle** containing a client certificate and private key (one-time download)
+3. You use the certificate for **mTLS** when requesting tokens from the token broker
 4. The token broker validates the client certificate and issues a JWT
-5. The JWT is used as a Bearer token to call the API
+5. You use the JWT as a Bearer token to call the API
 
-## Step 1: Enable API Access with mTLS
+## Step 1: Obtain Your Certificate
 
-```http
-POST /api/plugins/{plugin}/instances/{instance}/enable-api-access
-Content-Type: application/json
-Authorization: Bearer {user-jwt}
+Your tenant admin enables mTLS access for your plugin instance through the Performativ admin panel:
 
-{
-  "auth_method": "tls_client_auth"
-}
+1. Navigate to **Settings > Plugins**
+2. Find your plugin instance and click **API Credentials**
+3. Click **Enable mTLS Access**
+4. Download the PEM bundle immediately -- **it is available only once**
+
+The PEM bundle contains:
+
+```
+-----BEGIN CERTIFICATE-----
+... (your client certificate) ...
+-----END CERTIFICATE-----
+-----BEGIN PRIVATE KEY-----
+... (your private key) ...
+-----END PRIVATE KEY-----
 ```
 
-The response contains the credential bundle (shown **once** -- store securely):
+Along with the bundle, you will also receive:
 
-```json
-{
-  "client_id": "plg:my-plugin-42",
-  "pem_bundle": "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
-  "certificate_fingerprint": "sha256:abc123...",
-  "certificate_expires_at": "2024-04-15T00:00:00+00:00",
-  "token_endpoint": "https://token-broker.example.com/oauth/token",
-  "auth_method": "tls_client_auth"
-}
-```
+- **client_id** -- your plugin's principal identifier (e.g. `plg:my-plugin-42`)
+- **token_endpoint** -- the token broker URL
+- **certificate_fingerprint** -- SHA-256 fingerprint for verification
+- **certificate_expires_at** -- when the certificate expires
 
-Save the PEM bundle to files:
+Save the PEM bundle to a secure file:
 
 ```bash
-# Extract certificate and key from the PEM bundle
-# The bundle contains both the certificate and private key
-
+# Save the PEM bundle (contains both certificate and private key)
 echo "$PEM_BUNDLE" > plugin-cert.pem
-
-# Or split into separate files if needed:
-# Certificate is the first PEM block, key is the second
+chmod 600 plugin-cert.pem
 ```
 
 ## Step 2: Request an Access Token with mTLS
@@ -120,18 +118,18 @@ HttpResponse<String> response = client.send(tokenRequest, HttpResponse.BodyHandl
 
 ### Rotation
 
-Rotate credentials before the certificate expires:
+When a certificate is approaching expiry, your tenant admin rotates it through the Performativ UI:
 
-```http
-POST /api/plugins/{plugin}/instances/{instance}/rotate-mtls
-Authorization: Bearer {user-jwt}
-```
+1. Navigate to **Settings > Plugins**
+2. Find your plugin instance and click **API Credentials**
+3. Click **Rotate Certificate**
+4. Download the new PEM bundle immediately -- **available only once**
 
-This issues a new certificate and revokes the old one. The response contains a new PEM bundle.
+The old certificate is revoked immediately. Update your application with the new PEM bundle.
 
 ### Expiry Monitoring
 
-Certificates have a defined expiry date (`certificate_expires_at`). Monitor this and rotate before expiry. The certificate status is visible in the plugin instance details.
+Certificates have a defined expiry date (`certificate_expires_at`). Monitor this and coordinate with your admin to rotate before expiry. The certificate status is visible in the plugin instance details in the admin panel.
 
 ### Revocation
 

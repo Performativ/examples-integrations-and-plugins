@@ -4,25 +4,21 @@ Standard OAuth2 `client_credentials` flow using `client_secret_basic` authentica
 
 ## Overview
 
-1. Enable API access for your plugin instance to receive `client_id` and `client_secret`
-2. Exchange credentials for a JWT access token at the token broker
-3. Use the JWT to call the Performativ API
+1. Your tenant admin enables client secret access for your plugin instance via the Performativ UI
+2. You receive a credential bundle (`client_id`, `client_secret`, `token_endpoint`, `audience`)
+3. You exchange the credentials for a JWT access token at the token broker
+4. You use the JWT to call the Performativ API
 
-## Step 1: Enable API Access
+## Step 1: Obtain Your Credentials
 
-Enable client_secret API access for a plugin instance via the UI or API:
+Your tenant admin enables API access for your plugin instance through the Performativ admin panel:
 
-```http
-POST /api/plugins/{plugin}/instances/{instance}/enable-api-access
-Content-Type: application/json
-Authorization: Bearer {user-jwt}
+1. Navigate to **Settings > Plugins**
+2. Find your plugin instance and click **API Credentials**
+3. Click **Enable Client Secret**
+4. Copy the credential bundle immediately -- **the secret is shown only once**
 
-{
-  "auth_method": "client_secret_basic"
-}
-```
-
-The response contains your credentials (shown **once** -- store securely):
+You will receive a credential bundle like this:
 
 ```json
 {
@@ -34,6 +30,8 @@ The response contains your credentials (shown **once** -- store securely):
   "grant_type": "client_credentials"
 }
 ```
+
+Store these credentials securely in your application configuration (e.g. environment variables, a secrets manager).
 
 ## Step 2: Request an Access Token
 
@@ -119,14 +117,14 @@ See [PluginApiClient.java](../java/webhook-receiver/src/main/java/com/performati
 
 ## Secret Rotation
 
-To rotate your client secret:
+When you need to rotate your client secret, your tenant admin does this through the Performativ UI:
 
-```http
-POST /api/plugins/{plugin}/instances/{instance}/rotate-client-secret
-Authorization: Bearer {user-jwt}
-```
+1. Navigate to **Settings > Plugins**
+2. Find your plugin instance and click **API Credentials**
+3. Click **Rotate Secret**
+4. Copy the new secret immediately -- **shown only once**
 
-This returns a new `client_secret`. The old secret is immediately invalidated. Update your application configuration with the new secret.
+The old secret is immediately invalidated. Update your application configuration with the new secret.
 
 ## Scope
 
@@ -138,7 +136,7 @@ Plugin API credentials are scoped to `data:read`. This grants read access to the
 |---|---|---|
 | Setup | Simple -- just client_id + secret | Requires certificate management |
 | Security | Standard OAuth2 | FAPI 2.0 grade -- mutual TLS |
-| Rotation | Rotate secret via API | Rotate certificate via API |
+| Rotation | Admin rotates via UI, you update config | Admin rotates via UI, you update cert |
 | Use case | Standard integrations | High-security / regulated environments |
 
 For mTLS-based API access, see [API Access with mTLS](api-access-mtls.md).

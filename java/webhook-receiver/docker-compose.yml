@@ -1,0 +1,15 @@
+services:
+  webhook-receiver:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # Webhook signature verification (from plugin activation)
+      WEBHOOK_SIGNING_KEY: ${WEBHOOK_SIGNING_KEY:-}
+
+      # OAuth2 client_credentials for API access (from plugin credentials)
+      PLUGIN_CLIENT_ID: ${PLUGIN_CLIENT_ID:-}
+      PLUGIN_CLIENT_SECRET: ${PLUGIN_CLIENT_SECRET:-}
+      TOKEN_BROKER_URL: ${TOKEN_BROKER_URL:-}
+      API_BASE_URL: ${API_BASE_URL:-}
+      TOKEN_AUDIENCE: ${TOKEN_AUDIENCE:-backend-api}

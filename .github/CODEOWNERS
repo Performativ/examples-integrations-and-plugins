@@ -1,0 +1,7 @@
+# API guardians own the examples repo — all changes require their review
+* @Performativ/api-guardians
+
+# CI and security config also needs devsecops
+/.ci/ @Performativ/api-guardians @Performativ/devsecops
+/.github/ @Performativ/api-guardians @Performativ/devsecops
+.gitleaks.toml @Performativ/devsecops

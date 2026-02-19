@@ -1098,18 +1098,36 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "`CashAccountResource`",
+                        "description": "`CashAccountResource`\n\n`CashAccountResourceLite`",
                         "content": {
                             "application\/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#\/components\/schemas\/CashAccountResource"
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "data": {
+                                                    "$ref": "#\/components\/schemas\/CashAccountResource"
+                                                }
+                                            },
+                                            "required": [
+                                                "data"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "data": {
+                                                    "$ref": "#\/components\/schemas\/CashAccountResourceLite"
+                                                }
+                                            },
+                                            "required": [
+                                                "data"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object"
                                         }
-                                    },
-                                    "required": [
-                                        "data"
                                     ]
                                 }
                             }
@@ -2733,11 +2751,22 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "",
+                        "description": "Array of `ClientResourceLite`",
                         "content": {
                             "application\/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#\/components\/schemas\/ClientResourceLite"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
                                 }
                             }
                         }
@@ -16738,11 +16767,22 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "",
+                        "description": "Array of `PersonResource`",
                         "content": {
                             "application\/json": {
                                 "schema": {
-                                    "type": "object"
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#\/components\/schemas\/PersonResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
                                 }
                             }
                         }
@@ -16917,6 +16957,541 @@
                                 }
                             }
                         }
+                    },
+                    "404": {
+                        "$ref": "#\/components\/responses\/ModelNotFoundException"
+                    }
+                }
+            }
+        },
+        "\/person-relationships": {
+            "get": {
+                "operationId": "tenant:person-relationships.index",
+                "tags": [
+                    "PersonRelationship"
+                ],
+                "parameters": [
+                    {
+                        "name": "person_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 0
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 0
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of items",
+                        "content": {
+                            "application\/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "data": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "data"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#\/components\/responses\/AuthorizationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "tenant:person-relationships.store",
+                "tags": [
+                    "PersonRelationship"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application\/json": {
+                            "schema": {
+                                "$ref": "#\/components\/schemas\/StorePersonRelationshipRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PersonRelationshipResource`",
+                        "content": {
+                            "application\/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "data": {
+                                                    "$ref": "#\/components\/schemas\/PersonRelationshipResource"
+                                                }
+                                            },
+                                            "required": [
+                                                "data"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#\/components\/responses\/ValidationException"
+                    }
+                }
+            }
+        },
+        "\/person-relationships\/{personRelationship}": {
+            "get": {
+                "operationId": "tenant:person-relationships.show",
+                "tags": [
+                    "PersonRelationship"
+                ],
+                "parameters": [
+                    {
+                        "name": "personRelationship",
+                        "in": "path",
+                        "required": true,
+                        "description": "The person relationship ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`PersonRelationshipResource`",
+                        "content": {
+                            "application\/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "data": {
+                                                    "$ref": "#\/components\/schemas\/PersonRelationshipResource"
+                                                }
+                                            },
+                                            "required": [
+                                                "data"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#\/components\/responses\/ModelNotFoundException"
+                    }
+                }
+            },
+            "put": {
+                "operationId": "tenant:person-relationships.update",
+                "tags": [
+                    "PersonRelationship"
+                ],
+                "parameters": [
+                    {
+                        "name": "personRelationship",
+                        "in": "path",
+                        "required": true,
+                        "description": "The person relationship ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application\/json": {
+                            "schema": {
+                                "$ref": "#\/components\/schemas\/UpdatePersonRelationshipRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PersonRelationshipResource`",
+                        "content": {
+                            "application\/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "data": {
+                                                    "$ref": "#\/components\/schemas\/PersonRelationshipResource"
+                                                }
+                                            },
+                                            "required": [
+                                                "data"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#\/components\/responses\/ModelNotFoundException"
+                    },
+                    "422": {
+                        "$ref": "#\/components\/responses\/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "tenant:person-relationships.destroy",
+                "tags": [
+                    "PersonRelationship"
+                ],
+                "parameters": [
+                    {
+                        "name": "personRelationship",
+                        "in": "path",
+                        "required": true,
+                        "description": "The person relationship ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application\/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#\/components\/responses\/ModelNotFoundException"
+                    }
+                }
+            }
+        },
+        "\/person-relationship-types": {
+            "get": {
+                "operationId": "tenant:person-relationship-types.index",
+                "tags": [
+                    "PersonRelationshipType"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `PersonRelationshipTypeResource`",
+                        "content": {
+                            "application\/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#\/components\/schemas\/PersonRelationshipTypeResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#\/components\/responses\/AuthorizationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "tenant:person-relationship-types.store",
+                "tags": [
+                    "PersonRelationshipType"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application\/json": {
+                            "schema": {
+                                "$ref": "#\/components\/schemas\/StorePersonRelationshipTypeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PersonRelationshipTypeResource`",
+                        "content": {
+                            "application\/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#\/components\/schemas\/PersonRelationshipTypeResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#\/components\/responses\/AuthorizationException"
+                    },
+                    "422": {
+                        "$ref": "#\/components\/responses\/ValidationException"
+                    }
+                }
+            }
+        },
+        "\/person-relationship-types\/{personRelationshipType}": {
+            "get": {
+                "operationId": "tenant:person-relationship-types.show",
+                "tags": [
+                    "PersonRelationshipType"
+                ],
+                "parameters": [
+                    {
+                        "name": "personRelationshipType",
+                        "in": "path",
+                        "required": true,
+                        "description": "The person relationship type ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`PersonRelationshipTypeResource`",
+                        "content": {
+                            "application\/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#\/components\/schemas\/PersonRelationshipTypeResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#\/components\/responses\/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#\/components\/responses\/ModelNotFoundException"
+                    }
+                }
+            },
+            "put": {
+                "operationId": "tenant:person-relationship-types.update",
+                "tags": [
+                    "PersonRelationshipType"
+                ],
+                "parameters": [
+                    {
+                        "name": "personRelationshipType",
+                        "in": "path",
+                        "required": true,
+                        "description": "The person relationship type ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application\/json": {
+                            "schema": {
+                                "$ref": "#\/components\/schemas\/UpdatePersonRelationshipTypeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PersonRelationshipTypeResource`",
+                        "content": {
+                            "application\/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#\/components\/schemas\/PersonRelationshipTypeResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#\/components\/responses\/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#\/components\/responses\/ModelNotFoundException"
+                    },
+                    "422": {
+                        "$ref": "#\/components\/responses\/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "tenant:person-relationship-types.destroy",
+                "tags": [
+                    "PersonRelationshipType"
+                ],
+                "parameters": [
+                    {
+                        "name": "personRelationshipType",
+                        "in": "path",
+                        "required": true,
+                        "description": "The person relationship type ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application\/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#\/components\/responses\/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#\/components\/responses\/ModelNotFoundException"
+                    }
+                }
+            }
+        },
+        "\/person-relationship-types\/{personRelationshipType}\/migrate": {
+            "post": {
+                "operationId": "tenant:person-relationship-types.migrate",
+                "summary": "Migrate all relationships from one type to another.\nOptionally deprecates the source type",
+                "tags": [
+                    "PersonRelationshipType"
+                ],
+                "parameters": [
+                    {
+                        "name": "personRelationshipType",
+                        "in": "path",
+                        "required": true,
+                        "description": "The person relationship type ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application\/json": {
+                            "schema": {
+                                "$ref": "#\/components\/schemas\/MigratePersonRelationshipTypeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application\/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "migrated_count": {
+                                                    "type": "string"
+                                                },
+                                                "source_type": {
+                                                    "$ref": "#\/components\/schemas\/PersonRelationshipTypeResource"
+                                                },
+                                                "target_type": {
+                                                    "$ref": "#\/components\/schemas\/PersonRelationshipTypeResource"
+                                                }
+                                            },
+                                            "required": [
+                                                "migrated_count",
+                                                "source_type",
+                                                "target_type"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "success",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#\/components\/responses\/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#\/components\/responses\/AuthorizationException"
                     },
                     "404": {
                         "$ref": "#\/components\/responses\/ModelNotFoundException"
@@ -17808,15 +18383,6 @@
                         }
                     }
                 ],
-                "requestBody": {
-                    "content": {
-                        "application\/json": {
-                            "schema": {
-                                "$ref": "#\/components\/schemas\/UpdatePortfolioRequest"
-                            }
-                        }
-                    }
-                },
                 "responses": {
                     "200": {
                         "description": "`PortfolioResource`",
@@ -17836,11 +18402,11 @@
                             }
                         }
                     },
-                    "404": {
-                        "$ref": "#\/components\/responses\/ModelNotFoundException"
-                    },
                     "422": {
                         "$ref": "#\/components\/responses\/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#\/components\/responses\/ModelNotFoundException"
                     }
                 }
             },
@@ -24057,17 +24623,28 @@
                         "type": "string"
                     },
                     "client": {
-                        "$ref": "#\/components\/schemas\/ClientResource"
+                        "$ref": "#\/components\/schemas\/ClientResourceLite"
                     },
                     "currency": {
                         "$ref": "#\/components\/schemas\/CurrencyResource"
                     },
                     "attributed_portfolio": {
                         "type": [
-                            "array",
+                            "object",
                             "null"
                         ],
-                        "items": {}
+                        "properties": {
+                            "id": {
+                                "type": "integer"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "name"
+                        ]
                     },
                     "value_in_firm_currency": {
                         "type": [
@@ -24100,6 +24677,7 @@
                 "required": [
                     "id",
                     "name",
+                    "client",
                     "attributed_portfolio",
                     "value_in_firm_currency",
                     "is_periodization",
@@ -28748,6 +29326,21 @@
                 ],
                 "title": "MetricsTimeseriesResource"
             },
+            "MigratePersonRelationshipTypeRequest": {
+                "type": "object",
+                "properties": {
+                    "target_type_id": {
+                        "type": "integer"
+                    },
+                    "deprecate_source": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "target_type_id"
+                ],
+                "title": "MigratePersonRelationshipTypeRequest"
+            },
             "ModelPortfolioCompositeBenchmarkResource": {
                 "type": "object",
                 "properties": {
@@ -29970,6 +30563,114 @@
                     "description"
                 ],
                 "title": "PermissionResource"
+            },
+            "PersonRelationshipResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "person_id": {
+                        "type": "integer"
+                    },
+                    "related_person_id": {
+                        "type": "integer"
+                    },
+                    "person_relationship_type_id": {
+                        "type": "integer"
+                    },
+                    "relationship_type": {
+                        "$ref": "#\/components\/schemas\/PersonRelationshipTypeResource"
+                    },
+                    "person": {
+                        "$ref": "#\/components\/schemas\/PersonResource"
+                    },
+                    "related_person": {
+                        "$ref": "#\/components\/schemas\/PersonResource"
+                    },
+                    "is_inverse": {
+                        "type": "boolean"
+                    },
+                    "display_label": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "other_person": {},
+                    "metadata": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {}
+                    },
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "id",
+                    "person_id",
+                    "related_person_id",
+                    "person_relationship_type_id",
+                    "is_inverse",
+                    "display_label",
+                    "other_person",
+                    "metadata",
+                    "created_at",
+                    "updated_at"
+                ],
+                "title": "PersonRelationshipResource"
+            },
+            "PersonRelationshipTypeResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "key": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "inverse_label": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "is_symmetric": {
+                        "type": "boolean"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "relationships_count": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "id",
+                    "key",
+                    "label",
+                    "inverse_label",
+                    "is_symmetric",
+                    "status"
+                ],
+                "title": "PersonRelationshipTypeResource"
             },
             "PersonResource": {
                 "type": "object",
@@ -33815,18 +34516,6 @@
                             "null"
                         ],
                         "enum": [
-                            "Basic Materials",
-                            "Communication Services",
-                            "Consumer Cyclical",
-                            "Consumer Defensive",
-                            "Energy",
-                            "Financial Services",
-                            "Healthcare",
-                            "Industrials",
-                            "Real Estate",
-                            "Technology",
-                            "Unknown",
-                            "Utilities",
                             "Unknown"
                         ]
                     },
@@ -33836,177 +34525,6 @@
                             "null"
                         ],
                         "enum": [
-                            "Advertising Agencies",
-                            "Aerospace & Defence",
-                            "Agricultural Inputs",
-                            "Air Freight & Logistics",
-                            "Airlines",
-                            "Airports & Air Services",
-                            "Aluminum",
-                            "Apparel Manufacturing",
-                            "Apparel Retail",
-                            "Asset Management",
-                            "Auto & Truck Dealerships",
-                            "Auto Manufacturers",
-                            "Auto Parts",
-                            "Banks",
-                            "Banks - Diversified",
-                            "Banks - Regional",
-                            "Banks \u2014 Regional",
-                            "Beverages - Brewers",
-                            "Beverages - Non-Alcoholic",
-                            "Beverages - Wineries & Distilleries",
-                            "Biotechnology",
-                            "Broadcasting",
-                            "Building Materials",
-                            "Building Products & Equipment",
-                            "Business Equipment & Supplies",
-                            "Business Services",
-                            "Capital Markets",
-                            "Chemicals",
-                            "Coking Coal",
-                            "Communication Equipment",
-                            "Computer Hardware",
-                            "Confectioners",
-                            "Conglomerates",
-                            "Construction",
-                            "Construction",
-                            "Consulting Services",
-                            "Consumer Cyclical",
-                            "Consumer Defensive",
-                            "Consumer Electronics",
-                            "Copper",
-                            "Credit Services",
-                            "Department Stores",
-                            "Diagnostics & Research",
-                            "Discount Stores",
-                            "Drug Manufacturers",
-                            "Drug Manufacturers - Major",
-                            "Drug Manufacturers - Specialty & Generic",
-                            "Education & Training Services",
-                            "Electrical Equipment & Parts",
-                            "Electronic Components",
-                            "Electronic Gaming & Multimedia",
-                            "Electronics & Computer Distribution",
-                            "Engineering & Construction",
-                            "Entertainment",
-                            "Farm & Construction Machinery",
-                            "Farm & Heavy Construction Machinery",
-                            "Farm Products",
-                            "Financial Conglomerates",
-                            "Financial Data & Stock Exchanges",
-                            "Fixtures & Appliances",
-                            "Food Distribution",
-                            "Footwear & Accessories",
-                            "Furnishings",
-                            "Gambling",
-                            "Gold",
-                            "Grocery Stores",
-                            "Hardware",
-                            "Health Care Technology",
-                            "Health Information Services",
-                            "Healthcare Plans",
-                            "Home Improvement Retail",
-                            "Homebuilding & Construction",
-                            "Household & Personal Products",
-                            "Industrial Distribution",
-                            "Industrial Products",
-                            "Industrial Products",
-                            "Information Technology Services",
-                            "Infrastructure Operations",
-                            "Insurance",
-                            "Insurance - Diversified",
-                            "Insurance - Other",
-                            "Insurance Brokers",
-                            "Integrated Freight & Logistics",
-                            "Interactive Media",
-                            "Internet Content & Information",
-                            "Internet Retail",
-                            "Leisure",
-                            "Lodging",
-                            "Lumber & Wood Production",
-                            "Luxury Goods",
-                            "Marine Shipping",
-                            "Medical Care Facilities",
-                            "Medical Devices & Instruments",
-                            "Medical Diagnostics & Research",
-                            "Medical Distribution",
-                            "Medical Instruments",
-                            "Medical Instruments",
-                            " Supplies & Devices",
-                            "Metal Fabrication",
-                            "Mortgage Finance",
-                            "Oil & Gas Drilling",
-                            "Oil & Gas E&P",
-                            "Oil & Gas Equipment & Services",
-                            "Oil & Gas Integrated",
-                            "Oil & Gas Midstream",
-                            "Oil & Gas Refining & Marketing",
-                            "Other Industrial Metals & Mining",
-                            "Other Precious Metals & Mining",
-                            "Packaged Foods",
-                            "Packaging & Containers",
-                            "Paper & Paper Products",
-                            "Personal Services",
-                            "Pharmaceutical Retailers",
-                            "Pollution & Treatment Controls",
-                            "Publishing",
-                            "Railroads",
-                            "Real Estate Diversified",
-                            "Real Estate Management & Development",
-                            "Recreational Vehicles",
-                            "REIT - Diversified",
-                            "REIT - Healthcare Facilities",
-                            "REIT - Hotel & Motel",
-                            "REIT - Industrial",
-                            "REIT - Mortgage",
-                            "REIT - Office",
-                            "REIT - Residential",
-                            "REIT - Retail",
-                            "REIT - Specialty",
-                            "REITs",
-                            "Rental & Leasing Services",
-                            "Residential Construction",
-                            "Resorts & Casinos",
-                            "Restaurants",
-                            "Retail - Defensive",
-                            "Retail-Cyclical",
-                            "Scientific & Technical Instruments",
-                            "Security & Protection Services",
-                            "Semiconductor Equipment & Materials",
-                            "Semiconductors",
-                            "Shell Companies",
-                            "Silver",
-                            "Software",
-                            "Software - Application",
-                            "Software - Infrastructure",
-                            "Solar",
-                            "Specialty Business Services",
-                            "Specialty Chemicals",
-                            "Specialty Industrial Machinery",
-                            "Specialty Retail",
-                            "Staffing & Employment Services",
-                            "Steel",
-                            "Supplies & Devices",
-                            "Telecom Services",
-                            "Textile Manufacturing",
-                            "Thermal Coal",
-                            "Tobacco",
-                            "Tools & Accessories",
-                            "Transportation",
-                            "Travel Services",
-                            "Trucking",
-                            "Unspecified Consumer Cyclical",
-                            "Unspecified Consumer Defensive",
-                            "Uranium",
-                            "Utilities - Diversified",
-                            "Utilities - Independent Power Producers",
-                            "Utilities - Regulated",
-                            "Utilities - Regulated Electric",
-                            "Utilities - Regulated Gas",
-                            "Utilities - Regulated Water",
-                            "Utilities - Renewable",
-                            "Waste Management",
                             "Unknown"
                         ]
                     },
@@ -34022,16 +34540,6 @@
                             "null"
                         ],
                         "enum": [
-                            "Africa \/ Middle East",
-                            "Asia Developed",
-                            "Asia Emerging",
-                            "Australasia",
-                            "Europe Developed",
-                            "Europe Emerging",
-                            "Japan",
-                            "Latin America",
-                            "North America",
-                            "United Kingdom",
                             "Unknown"
                         ]
                     },
@@ -34440,6 +34948,64 @@
                     "name"
                 ],
                 "title": "StoreOrganizationalUnitRequest"
+            },
+            "StorePersonRelationshipRequest": {
+                "type": "object",
+                "properties": {
+                    "person_id": {
+                        "type": "integer"
+                    },
+                    "related_person_id": {
+                        "type": "integer"
+                    },
+                    "person_relationship_type_id": {
+                        "type": "integer"
+                    },
+                    "metadata": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "person_id",
+                    "related_person_id",
+                    "person_relationship_type_id"
+                ],
+                "title": "StorePersonRelationshipRequest"
+            },
+            "StorePersonRelationshipTypeRequest": {
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "label": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "inverse_label": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "is_symmetric": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "key",
+                    "label",
+                    "is_symmetric"
+                ],
+                "title": "StorePersonRelationshipTypeRequest"
             },
             "StorePersonRequest": {
                 "type": "object",
@@ -37938,18 +38504,6 @@
                             "null"
                         ],
                         "enum": [
-                            "Basic Materials",
-                            "Communication Services",
-                            "Consumer Cyclical",
-                            "Consumer Defensive",
-                            "Energy",
-                            "Financial Services",
-                            "Healthcare",
-                            "Industrials",
-                            "Real Estate",
-                            "Technology",
-                            "Unknown",
-                            "Utilities",
                             "Unknown"
                         ]
                     },
@@ -37959,177 +38513,6 @@
                             "null"
                         ],
                         "enum": [
-                            "Advertising Agencies",
-                            "Aerospace & Defence",
-                            "Agricultural Inputs",
-                            "Air Freight & Logistics",
-                            "Airlines",
-                            "Airports & Air Services",
-                            "Aluminum",
-                            "Apparel Manufacturing",
-                            "Apparel Retail",
-                            "Asset Management",
-                            "Auto & Truck Dealerships",
-                            "Auto Manufacturers",
-                            "Auto Parts",
-                            "Banks",
-                            "Banks - Diversified",
-                            "Banks - Regional",
-                            "Banks \u2014 Regional",
-                            "Beverages - Brewers",
-                            "Beverages - Non-Alcoholic",
-                            "Beverages - Wineries & Distilleries",
-                            "Biotechnology",
-                            "Broadcasting",
-                            "Building Materials",
-                            "Building Products & Equipment",
-                            "Business Equipment & Supplies",
-                            "Business Services",
-                            "Capital Markets",
-                            "Chemicals",
-                            "Coking Coal",
-                            "Communication Equipment",
-                            "Computer Hardware",
-                            "Confectioners",
-                            "Conglomerates",
-                            "Construction",
-                            "Construction",
-                            "Consulting Services",
-                            "Consumer Cyclical",
-                            "Consumer Defensive",
-                            "Consumer Electronics",
-                            "Copper",
-                            "Credit Services",
-                            "Department Stores",
-                            "Diagnostics & Research",
-                            "Discount Stores",
-                            "Drug Manufacturers",
-                            "Drug Manufacturers - Major",
-                            "Drug Manufacturers - Specialty & Generic",
-                            "Education & Training Services",
-                            "Electrical Equipment & Parts",
-                            "Electronic Components",
-                            "Electronic Gaming & Multimedia",
-                            "Electronics & Computer Distribution",
-                            "Engineering & Construction",
-                            "Entertainment",
-                            "Farm & Construction Machinery",
-                            "Farm & Heavy Construction Machinery",
-                            "Farm Products",
-                            "Financial Conglomerates",
-                            "Financial Data & Stock Exchanges",
-                            "Fixtures & Appliances",
-                            "Food Distribution",
-                            "Footwear & Accessories",
-                            "Furnishings",
-                            "Gambling",
-                            "Gold",
-                            "Grocery Stores",
-                            "Hardware",
-                            "Health Care Technology",
-                            "Health Information Services",
-                            "Healthcare Plans",
-                            "Home Improvement Retail",
-                            "Homebuilding & Construction",
-                            "Household & Personal Products",
-                            "Industrial Distribution",
-                            "Industrial Products",
-                            "Industrial Products",
-                            "Information Technology Services",
-                            "Infrastructure Operations",
-                            "Insurance",
-                            "Insurance - Diversified",
-                            "Insurance - Other",
-                            "Insurance Brokers",
-                            "Integrated Freight & Logistics",
-                            "Interactive Media",
-                            "Internet Content & Information",
-                            "Internet Retail",
-                            "Leisure",
-                            "Lodging",
-                            "Lumber & Wood Production",
-                            "Luxury Goods",
-                            "Marine Shipping",
-                            "Medical Care Facilities",
-                            "Medical Devices & Instruments",
-                            "Medical Diagnostics & Research",
-                            "Medical Distribution",
-                            "Medical Instruments",
-                            "Medical Instruments",
-                            " Supplies & Devices",
-                            "Metal Fabrication",
-                            "Mortgage Finance",
-                            "Oil & Gas Drilling",
-                            "Oil & Gas E&P",
-                            "Oil & Gas Equipment & Services",
-                            "Oil & Gas Integrated",
-                            "Oil & Gas Midstream",
-                            "Oil & Gas Refining & Marketing",
-                            "Other Industrial Metals & Mining",
-                            "Other Precious Metals & Mining",
-                            "Packaged Foods",
-                            "Packaging & Containers",
-                            "Paper & Paper Products",
-                            "Personal Services",
-                            "Pharmaceutical Retailers",
-                            "Pollution & Treatment Controls",
-                            "Publishing",
-                            "Railroads",
-                            "Real Estate Diversified",
-                            "Real Estate Management & Development",
-                            "Recreational Vehicles",
-                            "REIT - Diversified",
-                            "REIT - Healthcare Facilities",
-                            "REIT - Hotel & Motel",
-                            "REIT - Industrial",
-                            "REIT - Mortgage",
-                            "REIT - Office",
-                            "REIT - Residential",
-                            "REIT - Retail",
-                            "REIT - Specialty",
-                            "REITs",
-                            "Rental & Leasing Services",
-                            "Residential Construction",
-                            "Resorts & Casinos",
-                            "Restaurants",
-                            "Retail - Defensive",
-                            "Retail-Cyclical",
-                            "Scientific & Technical Instruments",
-                            "Security & Protection Services",
-                            "Semiconductor Equipment & Materials",
-                            "Semiconductors",
-                            "Shell Companies",
-                            "Silver",
-                            "Software",
-                            "Software - Application",
-                            "Software - Infrastructure",
-                            "Solar",
-                            "Specialty Business Services",
-                            "Specialty Chemicals",
-                            "Specialty Industrial Machinery",
-                            "Specialty Retail",
-                            "Staffing & Employment Services",
-                            "Steel",
-                            "Supplies & Devices",
-                            "Telecom Services",
-                            "Textile Manufacturing",
-                            "Thermal Coal",
-                            "Tobacco",
-                            "Tools & Accessories",
-                            "Transportation",
-                            "Travel Services",
-                            "Trucking",
-                            "Unspecified Consumer Cyclical",
-                            "Unspecified Consumer Defensive",
-                            "Uranium",
-                            "Utilities - Diversified",
-                            "Utilities - Independent Power Producers",
-                            "Utilities - Regulated",
-                            "Utilities - Regulated Electric",
-                            "Utilities - Regulated Gas",
-                            "Utilities - Regulated Water",
-                            "Utilities - Renewable",
-                            "Waste Management",
                             "Unknown"
                         ]
                     },
@@ -38145,16 +38528,6 @@
                             "null"
                         ],
                         "enum": [
-                            "Africa \/ Middle East",
-                            "Asia Developed",
-                            "Asia Emerging",
-                            "Australasia",
-                            "Europe Developed",
-                            "Europe Emerging",
-                            "Japan",
-                            "Latin America",
-                            "North America",
-                            "United Kingdom",
                             "Unknown"
                         ]
                     },
@@ -38688,6 +39061,55 @@
                 },
                 "title": "UpdateOrganizationalUnitRequest"
             },
+            "UpdatePersonRelationshipRequest": {
+                "type": "object",
+                "properties": {
+                    "person_relationship_type_id": {
+                        "type": "integer"
+                    },
+                    "metadata": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "title": "UpdatePersonRelationshipRequest"
+            },
+            "UpdatePersonRelationshipTypeRequest": {
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "label": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "inverse_label": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "is_symmetric": {
+                        "type": "boolean"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "active",
+                            "deprecated"
+                        ]
+                    }
+                },
+                "title": "UpdatePersonRelationshipTypeRequest"
+            },
             "UpdatePersonRequest": {
                 "type": "object",
                 "properties": {
@@ -38840,162 +39262,6 @@
                     }
                 },
                 "title": "UpdatePortfolioFundingAccountsRequest"
-            },
-            "UpdatePortfolioRequest": {
-                "type": "object",
-                "properties": {
-                    "canEditCustodian": {
-                        "type": "boolean"
-                    },
-                    "currency_id": {
-                        "type": "integer"
-                    },
-                    "client_group_tag_id": {
-                        "type": [
-                            "number",
-                            "null"
-                        ]
-                    },
-                    "override_benchmark_id": {
-                        "type": [
-                            "integer",
-                            "null"
-                        ]
-                    },
-                    "custodian_id": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "external_portfolio_id": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "client_credential_id": {
-                        "type": [
-                            "integer",
-                            "null"
-                        ]
-                    },
-                    "portfolio_type_id": {
-                        "type": [
-                            "number",
-                            "null"
-                        ]
-                    },
-                    "status": {
-                        "type": "string"
-                    },
-                    "raw_status": {
-                        "type": "string"
-                    },
-                    "comments": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "maxLength": 500
-                    },
-                    "name": {
-                        "type": "string",
-                        "maxLength": 255
-                    },
-                    "use_currency_matching_account": {
-                        "type": "boolean"
-                    },
-                    "start_date": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date"
-                    },
-                    "vat": {
-                        "type": [
-                            "number",
-                            "null"
-                        ]
-                    },
-                    "risk_profile_id": {
-                        "type": [
-                            "number",
-                            "null"
-                        ]
-                    },
-                    "trading_portfolio_id": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "account_category_id": {
-                        "type": [
-                            "integer",
-                            "null"
-                        ]
-                    },
-                    "portfolio_mandate": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "enum": [
-                            "discretionary",
-                            "advisory",
-                            "execution_only"
-                        ]
-                    },
-                    "organizational_unit_id": {
-                        "type": [
-                            "integer",
-                            "null"
-                        ]
-                    },
-                    "bank_account_reference_ids": {
-                        "type": [
-                            "array",
-                            "null"
-                        ],
-                        "items": {
-                            "type": "integer"
-                        }
-                    },
-                    "client_ids": {
-                        "type": "array",
-                        "items": {
-                            "type": "integer"
-                        }
-                    },
-                    "cash_accounts": {
-                        "type": [
-                            "array",
-                            "null"
-                        ],
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "integer"
-                                },
-                                "is_default": {
-                                    "type": "boolean"
-                                },
-                                "is_attributed_to": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "id",
-                                "is_default",
-                                "is_attributed_to"
-                            ]
-                        }
-                    }
-                },
-                "title": "UpdatePortfolioRequest"
             },
             "UpdatePortfolioTypeRequest": {
                 "type": "object",

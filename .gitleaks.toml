@@ -1,0 +1,32 @@
+title = "Performativ examples gitleaks config"
+
+# Extend the default gitleaks rules
+[extend]
+useDefault = true
+
+# Performativ-specific rules
+
+[[rules]]
+id = "performativ-client-secret"
+description = "Performativ plugin client secret"
+regex = '''(?i)plugin.?client.?secret\s*[:=]\s*['"]?[a-zA-Z0-9_\-]{20,}['"]?'''
+keywords = ["client_secret", "client-secret"]
+
+[[rules]]
+id = "performativ-api-key"
+description = "Performativ API key"
+regex = '''(?i)api.?key\s*[:=]\s*['"]?[a-zA-Z0-9_\-]{20,}['"]?'''
+keywords = ["api_key", "api-key"]
+
+[[rules]]
+id = "performativ-webhook-signing-key"
+description = "Performativ webhook signing key"
+regex = '''(?i)webhook.?signing.?key\s*[:=]\s*['"]?[a-zA-Z0-9_\-/+=]{20,}['"]?'''
+keywords = ["signing_key", "signing-key"]
+
+# Allow .env.example (it has placeholder values, not real secrets)
+[allowlist]
+paths = [
+    '''\.env\.example$''',
+    '''docs/.*\.md$''',
+]

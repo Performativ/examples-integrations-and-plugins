@@ -6,6 +6,7 @@ import com.performativ.client.api.PortfolioApi;
 import com.performativ.client.core.ApiClient;
 import com.performativ.client.core.ApiException;
 import com.performativ.client.model.*;
+
 import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -69,10 +70,14 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
     void createClient() throws ApiException {
         assertTrue(personId > 0, "Person must be created first");
 
+        StoreClientRequestPrimaryPerson primaryPerson = new StoreClientRequestPrimaryPerson();
+        primaryPerson.setPersonId(personId);
+
         StoreClientRequest req = new StoreClientRequest();
         req.name("Scenario-S3 Client");
         req.type("individual");
         req.isActive(true);
+        req.primaryPerson(primaryPerson);
 
         var response = clientApi.tenantClientsStore(req);
         assertNotNull(response);
@@ -80,6 +85,8 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
 
         clientId = response.getData().getId();
         assertTrue(clientId > 0, "Client ID should be positive");
+        assertEquals("Scenario-S3 Client", response.getData().getName(),
+                "Created client name should round-trip through typed model");
     }
 
     @Test
@@ -97,6 +104,8 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
 
         portfolioId = response.getData().getId();
         assertTrue(portfolioId > 0, "Portfolio ID should be positive");
+        assertEquals("Scenario-S3 Portfolio", response.getData().getName(),
+                "Created portfolio name should round-trip through typed model");
     }
 
     // -- Read back ---------------------------------------------------------
@@ -108,20 +117,34 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
 
         var response = portfolioApi.tenantPortfoliosShow(portfolioId);
         assertNotNull(response);
-        assertEquals(portfolioId, response.getData().getId());
+
+        var data = response.getData();
+        assertEquals(portfolioId, data.getId());
+        assertEquals("Scenario-S3 Portfolio", data.getName(),
+                "Read-back name should match — verifies show response model");
     }
 
     // -- Update ------------------------------------------------------------
 
     @Test
     @Order(5)
-    void updatePortfolio() throws ApiException {
+    void updatePortfolio() throws Exception {
         assertTrue(portfolioId > 0, "Portfolio must be created first");
 
-        UpdatePortfolioRequest req = new UpdatePortfolioRequest();
-        req.name("Scenario-S3 Portfolio Updated");
+        // The generated client's tenantPortfoliosUpdate has no request body parameter —
+        // the spec doesn't define one. Use raw HTTP for the update, then read back
+        // through the generated client to verify the typed response model.
+        var rawResponse = apiPut(token, "/api/portfolios/" + portfolioId,
+                """
+                {"name":"Scenario-S3 Portfolio Updated"}
+                """);
+        assertTrue(rawResponse.statusCode() < 300,
+                "Update should succeed, got: " + rawResponse.statusCode());
 
-        portfolioApi.tenantPortfoliosUpdate(portfolioId, req);
+        // Read back through the generated client to verify typed deserialization
+        var readBack = portfolioApi.tenantPortfoliosShow(portfolioId);
+        assertEquals("Scenario-S3 Portfolio Updated", readBack.getData().getName(),
+                "Updated name should persist — verifies show response model after update");
     }
 
     // -- Delete in reverse order -------------------------------------------

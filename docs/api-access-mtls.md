@@ -2,7 +2,7 @@
 
 FAPI 2.0-grade mutual TLS authentication for high-security environments. The plugin authenticates to the token broker using a client certificate instead of a shared secret.
 
-> **Note:** mTLS access is typically available in production and UAT environments only. Sandbox environments may not support certificate-based authentication. Check with your environment administrator.
+> **Important:** mTLS access is only available in **UAT and Production** environments. Sandbox environments do not support certificate-based authentication. Use [client_secret_basic](api-access-client-secret.md) in Sandbox.
 
 ## Overview
 
@@ -62,7 +62,7 @@ chmod 600 plugin-cert.pem
 curl -s -X POST "https://token-broker.example.com/oauth/token" \
   --cert plugin-cert.pem \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=client_credentials&client_id=plg:my-plugin-42&audience=backend-api"
+  -d "grant_type=client_credentials&client_id=plg:my-plugin-42"
 ```
 
 Note: With mTLS, the `client_id` is sent in the request body (not as Basic auth). The client certificate provides the authentication.
@@ -110,7 +110,7 @@ HttpRequest tokenRequest = HttpRequest.newBuilder()
     .uri(URI.create("https://token-broker.example.com/oauth/token"))
     .header("Content-Type", "application/x-www-form-urlencoded")
     .POST(HttpRequest.BodyPublishers.ofString(
-        "grant_type=client_credentials&client_id=plg:my-plugin-42&audience=backend-api"))
+        "grant_type=client_credentials&client_id=plg:my-plugin-42"))
     .build();
 
 HttpResponse<String> response = client.send(tokenRequest, HttpResponse.BodyHandlers.ofString());

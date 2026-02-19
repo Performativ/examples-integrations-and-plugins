@@ -1,6 +1,7 @@
-package com.performativ.scenarios;
+package com.performativ.scenarios.manual;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.performativ.scenarios.BaseScenario;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -9,7 +10,12 @@ import java.net.http.HttpResponse;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Acquires an OAuth2 token and calls GET /api/clients to verify API access.
+ * S1: API Access — acquire an OAuth2 token and call GET /api/clients.
+ *
+ * <p>Verifies that credentials are valid and the API is reachable.
+ * No entities are created or deleted.
+ *
+ * @see <a href="../../../../../../../../../SCENARIOS.md">SCENARIOS.md</a>
  */
 class ApiAccessScenario extends BaseScenario {
 
@@ -29,6 +35,6 @@ class ApiAccessScenario extends BaseScenario {
         assertEquals(200, response.statusCode(), "Expected 200 from GET /api/clients");
 
         JsonNode body = objectMapper.readTree(response.body());
-        assertNotNull(body);
+        assertTrue(body.has("data"), "Response should have 'data' field");
     }
 }

@@ -14,19 +14,20 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
 
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Shared utilities for integration scenarios.
  *
  * <p>Loads configuration from the repo-root {@code .env} file via dotenv-java.
- * Uses JUnit {@code assumeTrue} to skip tests gracefully when credentials are absent.
+ * Credentials are required — tests fail immediately when {@code .env} is missing
+ * or incomplete. Copy {@code .env.example} to {@code .env} and fill in values.
  */
-abstract class BaseScenario {
+public abstract class BaseScenario {
 
     protected static final Dotenv dotenv = Dotenv.configure()
             .directory("../../")
-            .ignoreIfMissing()
             .load();
 
     protected static final ObjectMapper objectMapper = new ObjectMapper();
@@ -47,13 +48,14 @@ abstract class BaseScenario {
             dotenv.get("WEBHOOK_POLL_URL"));
 
     /**
-     * Skip the current test if any of the given env vars are blank or missing.
+     * Assert that all given environment variables are present and non-blank.
+     * Fails the test immediately if any are missing — no graceful skipping.
      */
     protected static void requireEnv(String... keys) {
         for (String key : keys) {
             String value = dotenv.get(key);
-            assumeTrue(value != null && !value.isBlank(),
-                    "Skipping: " + key + " not set (copy .env.example to .env and fill in credentials)");
+            assertNotNull(value, key + " must be set in .env (copy .env.example and fill in credentials)");
+            assertFalse(value.isBlank(), key + " must not be blank in .env");
         }
     }
 
@@ -113,7 +115,6 @@ abstract class BaseScenario {
 
     /**
      * Perform an authenticated POST request with a JSON body.
-     * Returns the parsed response body.
      */
     protected static HttpResponse<String> apiPost(String token, String path, String jsonBody)
             throws IOException, InterruptedException {

@@ -28,14 +28,14 @@ import java.util.Map;
  * is skipped silently). This keeps scenarios runnable without a running
  * webhook-receiver.
  */
-final class WebhookChecker {
+public final class WebhookChecker {
 
     private final String webhookReceiverUrl;  // push mode
     private final String pollEndpointUrl;     // poll mode (future)
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
-    WebhookChecker(String webhookReceiverUrl, String pollEndpointUrl) {
+    public WebhookChecker(String webhookReceiverUrl, String pollEndpointUrl) {
         this.webhookReceiverUrl = webhookReceiverUrl;
         this.pollEndpointUrl = pollEndpointUrl;
         this.httpClient = HttpClient.newBuilder()
@@ -45,7 +45,7 @@ final class WebhookChecker {
     }
 
     /** Returns true if webhook checking is configured in either mode. */
-    boolean isEnabled() {
+    public boolean isEnabled() {
         return (webhookReceiverUrl != null && !webhookReceiverUrl.isBlank())
                 || (pollEndpointUrl != null && !pollEndpointUrl.isBlank());
     }
@@ -54,7 +54,7 @@ final class WebhookChecker {
      * Clear received events in the webhook-receiver (call before mutations).
      * No-op in poll mode or when disabled.
      */
-    void clearEvents() {
+    public void clearEvents() {
         if (webhookReceiverUrl == null || webhookReceiverUrl.isBlank()) return;
         try {
             HttpRequest request = HttpRequest.newBuilder()
@@ -77,7 +77,7 @@ final class WebhookChecker {
      * @param timeoutMs maximum time to wait
      * @return true if the event was found, false if timed out or checking is disabled
      */
-    boolean waitForEvent(String entity, String event, String entityId, long timeoutMs) {
+    public boolean waitForEvent(String entity, String event, String entityId, long timeoutMs) {
         if (!isEnabled()) return false;
 
         if (webhookReceiverUrl != null && !webhookReceiverUrl.isBlank()) {

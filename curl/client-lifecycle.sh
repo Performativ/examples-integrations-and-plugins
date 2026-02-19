@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# Client Lifecycle — curl example
+# S2: Client Lifecycle — curl example
 #
-# Demonstrates: acquire token → create person → create client → read back → delete both
+# Demonstrates: acquire token → create Person → Client → read → update → delete both
 # Loads credentials from the repo-root .env file.
 #
 # Usage:
@@ -52,7 +52,7 @@ PERSON=$(curl -s -X POST "${API}/api/persons" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
-    -d '{"first_name":"Curl","last_name":"Example","email":"curl-example@example.com","language_code":"en"}')
+    -d '{"first_name":"Curl","last_name":"ClientLifecycle","email":"curl-s2@example.com","language_code":"en"}')
 
 PERSON_ID=$(echo "$PERSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Created Person ID: $PERSON_ID"
@@ -63,7 +63,7 @@ CLIENT=$(curl -s -X POST "${API}/api/clients" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
-    -d "{\"name\":\"Curl Example Client\",\"type\":\"individual\",\"is_active\":true,\"primary_person_id\":${PERSON_ID}}")
+    -d "{\"name\":\"Curl-S2 Client\",\"type\":\"individual\",\"is_active\":true,\"primary_person_id\":${PERSON_ID}}")
 
 CLIENT_ID=$(echo "$CLIENT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Created Client ID: $CLIENT_ID"
@@ -75,22 +75,30 @@ curl -s "${API}/api/clients/${CLIENT_ID}" \
     -H "Accept: application/json" | python3 -m json.tool | head -20
 
 echo ""
-echo "=== 5. Read back Person ==="
+echo "=== 5. Update Client ==="
+curl -s -X PUT "${API}/api/clients/${CLIENT_ID}" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json" \
+    -d '{"name":"Curl-S2 Client Updated"}' -o /dev/null -w "HTTP %{http_code}\n"
+
+echo ""
+echo "=== 6. Read back Person ==="
 curl -s "${API}/api/persons/${PERSON_ID}" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Accept: application/json" | python3 -m json.tool | head -20
 
 echo ""
-echo "=== 6. Delete Client ==="
+echo "=== 7. Delete Client ==="
 curl -s -X DELETE "${API}/api/clients/${CLIENT_ID}" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Accept: application/json" -o /dev/null -w "HTTP %{http_code}\n"
 
 echo ""
-echo "=== 7. Delete Person ==="
+echo "=== 8. Delete Person ==="
 curl -s -X DELETE "${API}/api/persons/${PERSON_ID}" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Accept: application/json" -o /dev/null -w "HTTP %{http_code}\n"
 
 echo ""
-echo "Done. All entities created and cleaned up."
+echo "Done. All entities created, read, updated, and cleaned up."

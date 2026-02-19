@@ -42,7 +42,6 @@ The credential bundle contains:
 | `client_id` | Your plugin's OAuth2 client identifier |
 | `client_secret` | The client secret (shown once) |
 | `token_endpoint` | Token broker URL for requesting access tokens |
-| `audience` | The `audience` parameter for token requests |
 | `instance_id` | Your plugin instance ID |
 
 ## What You Need as a Developer
@@ -53,9 +52,8 @@ After your plugin is set up, you should have:
 |---|---|---|
 | **Signing key** | Shown on plugin creation | Verify webhook HMAC signatures |
 | **Client ID + Secret** | Shown when enabling client secret access | OAuth2 token requests |
-| **PEM bundle** | Downloaded when enabling mTLS access | mTLS token requests (production/UAT only) |
+| **PEM bundle** | Downloaded when enabling mTLS access | mTLS token requests (UAT/Production only) |
 | **Token endpoint** | Included in credential bundle | Where to request tokens |
-| **Audience** | Included in credential bundle | The `audience` parameter for token requests |
 
 The token broker URL follows the pattern `https://api.{tenant}.{environment}.onperformativ.com/token-broker`. The full token endpoint is `{TOKEN_BROKER_URL}/oauth/token`.
 

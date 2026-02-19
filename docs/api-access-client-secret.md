@@ -5,7 +5,7 @@ Standard OAuth2 `client_credentials` flow using `client_secret_basic` authentica
 ## Overview
 
 1. Enable client secret access for your plugin in the Performativ UI
-2. Copy the credential bundle (`client_id`, `client_secret`, `token_endpoint`, `audience`)
+2. Copy the credential bundle (`client_id`, `client_secret`, `token_endpoint`)
 3. Exchange the credentials for a JWT access token at the token broker
 4. Use the JWT to call the Performativ API
 
@@ -25,7 +25,6 @@ You will receive a credential bundle like this:
   "client_id": "plg:my-plugin-42.acme-corp",
   "client_secret": "generated-secret-value",
   "token_endpoint": "https://token-broker.example.com/oauth/token",
-  "audience": "backend-api",
   "auth_method": "client_secret_basic",
   "grant_type": "client_credentials"
 }
@@ -44,8 +43,10 @@ POST {token_endpoint}/oauth/token
 Authorization: Basic base64({client_id}:{client_secret})
 Content-Type: application/x-www-form-urlencoded
 
-grant_type=client_credentials&audience=backend-api
+grant_type=client_credentials
 ```
+
+The token broker uses the default audience for your tenant. The examples in this repo set `audience=backend-api` internally via `.env` -- you do not need to configure this.
 
 ### curl Example
 
@@ -57,7 +58,7 @@ TOKEN_URL="https://token-broker.example.com/oauth/token"
 TOKEN=$(curl -s -X POST "$TOKEN_URL" \
   -u "$CLIENT_ID:$CLIENT_SECRET" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=client_credentials&audience=backend-api" \
+  -d "grant_type=client_credentials" \
   | jq -r '.access_token')
 ```
 
@@ -100,8 +101,7 @@ PluginApiClient client = new PluginApiClient(
     "https://token-broker.example.com",  // token broker URL
     "https://api.example.com",           // API base URL
     "plg:my-plugin-42.acme-corp",        // client_id
-    "generated-secret-value",            // client_secret
-    "backend-api"                        // audience
+    "generated-secret-value"             // client_secret
 );
 
 // Tokens are acquired and cached automatically

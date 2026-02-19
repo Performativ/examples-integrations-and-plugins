@@ -1,6 +1,7 @@
-package com.performativ.scenarios;
+package com.performativ.scenarios.manual;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.performativ.scenarios.BaseScenario;
 import org.junit.jupiter.api.*;
 
 import java.net.http.HttpResponse;
@@ -8,11 +9,11 @@ import java.net.http.HttpResponse;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Creates a Person and Client, reads them back, verifies webhooks if configured,
- * then deletes both.
+ * S2: Client Lifecycle — create Person and Client, read back, update, delete.
  *
- * <p>Set {@code WEBHOOK_RECEIVER_URL=http://localhost:8080} to enable webhook
- * verification (requires the webhook-receiver to be running).
+ * <p>Uses raw HTTP throughout. Verifies webhooks if {@code WEBHOOK_RECEIVER_URL} is set.
+ *
+ * @see <a href="../../../../../../../../../SCENARIOS.md">SCENARIOS.md</a>
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ClientLifecycleScenario extends BaseScenario {
@@ -33,7 +34,7 @@ class ClientLifecycleScenario extends BaseScenario {
     void createPerson() throws Exception {
         JsonNode person = createEntity(token, "/api/persons",
                 """
-                {"first_name":"Scenario","last_name":"ClientLifecycle","email":"lifecycle@example.com","language_code":"en"}
+                {"first_name":"Scenario","last_name":"ClientLifecycle","email":"scenario-s2@example.com","language_code":"en"}
                 """);
 
         personId = person.get("id").asInt();
@@ -48,12 +49,12 @@ class ClientLifecycleScenario extends BaseScenario {
 
         JsonNode client = createEntity(token, "/api/clients",
                 String.format("""
-                {"name":"Scenario ClientLifecycle","type":"individual","is_active":true,"primary_person_id":%d}
+                {"name":"Scenario-S2 Client","type":"individual","is_active":true,"primary_person_id":%d}
                 """, personId));
 
         clientId = client.get("id").asInt();
         assertTrue(clientId > 0, "Client ID should be positive");
-        assertEquals("Scenario ClientLifecycle", client.get("name").asText());
+        assertEquals("Scenario-S2 Client", client.get("name").asText());
     }
 
     @Test
@@ -66,12 +67,28 @@ class ClientLifecycleScenario extends BaseScenario {
 
         JsonNode client = objectMapper.readTree(response.body()).path("data");
         assertEquals(clientId, client.get("id").asInt());
-        assertEquals("Scenario ClientLifecycle", client.get("name").asText());
+        assertEquals("Scenario-S2 Client", client.get("name").asText());
         assertEquals("individual", client.get("type").asText());
     }
 
     @Test
     @Order(4)
+    void updateClient() throws Exception {
+        assertTrue(clientId > 0, "Client must be created first");
+
+        HttpResponse<String> response = apiPut(token, "/api/clients/" + clientId,
+                """
+                {"name":"Scenario-S2 Client Updated"}
+                """);
+        assertTrue(response.statusCode() < 300,
+                "Update should succeed, got: " + response.statusCode() + " " + response.body());
+
+        JsonNode client = objectMapper.readTree(response.body()).path("data");
+        assertEquals("Scenario-S2 Client Updated", client.get("name").asText());
+    }
+
+    @Test
+    @Order(5)
     void readBackPerson() throws Exception {
         assertTrue(personId > 0, "Person must be created first");
 
@@ -85,7 +102,7 @@ class ClientLifecycleScenario extends BaseScenario {
     }
 
     @Test
-    @Order(5)
+    @Order(6)
     void verifyWebhooksIfEnabled() {
         if (!webhookChecker.isEnabled()) {
             System.out.println("Webhook checking not configured (set WEBHOOK_RECEIVER_URL to enable)");
@@ -101,6 +118,26 @@ class ClientLifecycleScenario extends BaseScenario {
                 "Expected Client.Created webhook for client " + clientId);
 
         System.out.println("Webhooks verified for ClientLifecycle");
+    }
+
+    @Test
+    @Order(7)
+    void deleteClient() throws Exception {
+        assertTrue(clientId > 0, "Client must be created first");
+        HttpResponse<String> response = apiDelete(token, "/api/clients/" + clientId);
+        assertTrue(response.statusCode() < 300 || response.statusCode() == 404,
+                "Delete should succeed, got: " + response.statusCode());
+        clientId = 0;
+    }
+
+    @Test
+    @Order(8)
+    void deletePerson() throws Exception {
+        assertTrue(personId > 0, "Person must be created first");
+        HttpResponse<String> response = apiDelete(token, "/api/persons/" + personId);
+        assertTrue(response.statusCode() < 300 || response.statusCode() == 404,
+                "Delete should succeed, got: " + response.statusCode());
+        personId = 0;
     }
 
     @AfterAll

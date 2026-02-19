@@ -87,6 +87,23 @@ Scenarios require a valid `.env` with credentials -- tests **fail** (not skip) w
 | `client_secret_basic` | Standard integrations | All (Sandbox, UAT, Production) | Client ID + Secret, simple OAuth2 flow |
 | `tls_client_auth` | Regulated environments | UAT and Production only | mTLS with client certificates, FAPI 2.0 grade |
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add new clients, scenarios, or improvements.
+
+## Architecture Decisions
+
+Key design choices are documented in [docs/adr/](docs/adr/):
+
+| ADR | Title |
+|-----|-------|
+| [001](docs/adr/001-matrix-testing.md) | Matrix testing across client types |
+| [002](docs/adr/002-openapi-strict-generation.md) | Strict OpenAPI generation as compatibility check |
+| [003](docs/adr/003-scenario-definitions.md) | Scenario definitions as single source of truth |
+| [004](docs/adr/004-auth-environment-strategy.md) | Auth and environment strategy |
+| [005](docs/adr/005-secret-management-ci-security.md) | Secret management and CI security |
+| [006](docs/adr/006-contribution-review-policy.md) | Contribution and review policy |
+
 ## License
 
 Proprietary. For use by Performativ customers and integration partners.

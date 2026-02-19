@@ -1,0 +1,9 @@
+.env
+target/
+*.class
+*.jar
+.idea/
+*.iml
+.vscode/
+.DS_Store
+.worktrees/

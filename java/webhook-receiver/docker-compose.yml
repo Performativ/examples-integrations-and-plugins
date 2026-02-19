@@ -1,0 +1,24 @@
+services:
+  webhook-receiver:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - path: ../../.env
+        required: false
+    environment:
+      TOKEN_AUDIENCE: ${TOKEN_AUDIENCE:-backend-api}
+      POLLER_ENABLED: ${POLLER_ENABLED:-false}
+      POLLER_INTERVAL_MS: ${POLLER_INTERVAL_MS:-10000}
+      POLLER_BATCH_SIZE: ${POLLER_BATCH_SIZE:-50}
+      POLLER_INCLUDE_SIGNATURE: ${POLLER_INCLUDE_SIGNATURE:-false}
+
+  # Cloudflare Tunnel sidecar — exposes the local webhook receiver to the internet.
+  # Start with: docker compose --profile tunnel up
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://webhook-receiver:8080
+    depends_on:
+      - webhook-receiver
+    profiles:
+      - tunnel

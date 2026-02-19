@@ -1,0 +1,21 @@
+{
+  "scenarios": ["s1", "s2", "s3", "s4", "s5"],
+  "clients": {
+    "curl": { "scenarios": ["s1", "s2", "s3", "s4", "s5"], "setup": "bash" },
+    "java-manual": { "scenarios": ["s1", "s2", "s3", "s4", "s5"], "setup": "java" },
+    "java-generated": { "scenarios": ["s1", "s2", "s3", "s4", "s5"], "setup": "java" }
+  },
+  "auth_methods": {
+    "client_secret": {
+      "environments": ["sandbox", "uat", "production"],
+      "status": "active"
+    },
+    "mtls": {
+      "environments": ["uat", "production"],
+      "status": "planned",
+      "notes": "mTLS requires certificate credentials. See ADR-004."
+    }
+  },
+  "active_environments": ["sandbox-client-secret"],
+  "planned_environments": ["uat-client-secret", "uat-mtls", "production-client-secret", "production-mtls"]
+}

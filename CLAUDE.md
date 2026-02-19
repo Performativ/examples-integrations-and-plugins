@@ -2,6 +2,8 @@
 
 This is the public, partner-facing examples repo for the Performativ API. It contains integration scenarios, documentation, and CI infrastructure.
 
+**Read [AGENTS.md](AGENTS.md) first** — it contains mandatory rules that override any default behavior.
+
 ## Key Files
 
 | File | Role |

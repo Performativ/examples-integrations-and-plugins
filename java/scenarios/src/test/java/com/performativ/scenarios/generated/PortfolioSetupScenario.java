@@ -128,18 +128,23 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
 
     @Test
     @Order(5)
-    void updatePortfolio() throws ApiException {
+    void updatePortfolio() throws Exception {
         assertTrue(portfolioId > 0, "Portfolio must be created first");
 
-        UpdatePortfolioRequest req = new UpdatePortfolioRequest();
-        req.name("Scenario-S3 Portfolio Updated");
+        // The generated client's tenantPortfoliosUpdate has no request body parameter —
+        // the spec doesn't define one. Use raw HTTP for the update, then read back
+        // through the generated client to verify the typed response model.
+        var rawResponse = apiPut(token, "/api/portfolios/" + portfolioId,
+                """
+                {"name":"Scenario-S3 Portfolio Updated"}
+                """);
+        assertTrue(rawResponse.statusCode() < 300,
+                "Update should succeed, got: " + rawResponse.statusCode());
 
-        portfolioApi.tenantPortfoliosUpdate(portfolioId, req);
-
-        // Read back to verify the update through the typed model
+        // Read back through the generated client to verify typed deserialization
         var readBack = portfolioApi.tenantPortfoliosShow(portfolioId);
         assertEquals("Scenario-S3 Portfolio Updated", readBack.getData().getName(),
-                "Updated name should persist — verifies update response model");
+                "Updated name should persist — verifies show response model after update");
     }
 
     // -- Delete in reverse order -------------------------------------------

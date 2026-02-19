@@ -67,6 +67,7 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
         req.name("Scenario-S2 Client");
         req.type("individual");
         req.isActive(true);
+        req.primaryPersonId(personId);
 
         var response = clientApi.tenantClientsStore(req);
         assertNotNull(response, "Client store response should not be null");
@@ -74,7 +75,8 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
 
         clientId = response.getData().getId();
         assertTrue(clientId > 0, "Client ID should be positive");
-        assertEquals("Scenario-S2 Client", response.getData().getName());
+        assertEquals("Scenario-S2 Client", response.getData().getName(),
+                "Created client name should match request — verifies typed model round-trip");
     }
 
     @Test
@@ -84,8 +86,11 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
 
         var response = clientApi.tenantClientsShow(clientId);
         assertNotNull(response);
-        assertEquals(clientId, response.getData().getId());
-        assertEquals("Scenario-S2 Client", response.getData().getName());
+
+        var data = response.getData();
+        assertEquals(clientId, data.getId());
+        assertEquals("Scenario-S2 Client", data.getName(),
+                "Read-back name should match — verifies show response deserializes correctly");
     }
 
     @Test
@@ -98,6 +103,11 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
 
         var response = clientApi.tenantClientsUpdate(clientId, req);
         assertNotNull(response, "Client update response should not be null");
+
+        // Read back to verify the update through the typed model
+        var readBack = clientApi.tenantClientsShow(clientId);
+        assertEquals("Scenario-S2 Client Updated", readBack.getData().getName(),
+                "Updated name should persist — verifies update response model");
     }
 
     @Test
@@ -107,7 +117,13 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
 
         var response = personApi.tenantPersonsShow(personId);
         assertNotNull(response);
-        assertEquals(personId, response.getData().getId());
+
+        var data = response.getData();
+        assertEquals(personId, data.getId());
+        assertEquals("Scenario", data.getFirstName(),
+                "Person first_name should round-trip through typed model");
+        assertEquals("ClientLifecycle", data.getLastName(),
+                "Person last_name should round-trip through typed model");
     }
 
     @Test

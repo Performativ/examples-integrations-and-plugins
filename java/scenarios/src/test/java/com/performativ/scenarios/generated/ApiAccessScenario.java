@@ -29,11 +29,14 @@ class ApiAccessScenario extends GeneratedClientScenario {
 
     @Test
     void listClientsViaGeneratedClient() throws ApiException {
-        // tenantClientsIndex has 19 query parameters — all optional, pass null
+        // tenantClientsIndex has 19 query parameters — all optional, pass null.
+        // The generated return type is a typed response model with getData() — if the
+        // API response structure doesn't match the spec, Jackson strict mode will fail here.
         var response = clientApi.tenantClientsIndex(
                 null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null);
 
         assertNotNull(response, "Client index response should not be null");
+        assertNotNull(response.getData(), "Response 'data' field should deserialize to a typed list");
     }
 }

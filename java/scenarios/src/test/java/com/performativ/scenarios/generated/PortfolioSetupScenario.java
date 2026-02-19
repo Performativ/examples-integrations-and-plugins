@@ -73,6 +73,7 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
         req.name("Scenario-S3 Client");
         req.type("individual");
         req.isActive(true);
+        req.primaryPersonId(personId);
 
         var response = clientApi.tenantClientsStore(req);
         assertNotNull(response);
@@ -80,6 +81,8 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
 
         clientId = response.getData().getId();
         assertTrue(clientId > 0, "Client ID should be positive");
+        assertEquals("Scenario-S3 Client", response.getData().getName(),
+                "Created client name should round-trip through typed model");
     }
 
     @Test
@@ -97,6 +100,8 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
 
         portfolioId = response.getData().getId();
         assertTrue(portfolioId > 0, "Portfolio ID should be positive");
+        assertEquals("Scenario-S3 Portfolio", response.getData().getName(),
+                "Created portfolio name should round-trip through typed model");
     }
 
     // -- Read back ---------------------------------------------------------
@@ -108,7 +113,11 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
 
         var response = portfolioApi.tenantPortfoliosShow(portfolioId);
         assertNotNull(response);
-        assertEquals(portfolioId, response.getData().getId());
+
+        var data = response.getData();
+        assertEquals(portfolioId, data.getId());
+        assertEquals("Scenario-S3 Portfolio", data.getName(),
+                "Read-back name should match — verifies show response model");
     }
 
     // -- Update ------------------------------------------------------------
@@ -122,6 +131,11 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
         req.name("Scenario-S3 Portfolio Updated");
 
         portfolioApi.tenantPortfoliosUpdate(portfolioId, req);
+
+        // Read back to verify the update through the typed model
+        var readBack = portfolioApi.tenantPortfoliosShow(portfolioId);
+        assertEquals("Scenario-S3 Portfolio Updated", readBack.getData().getName(),
+                "Updated name should persist — verifies update response model");
     }
 
     // -- Delete in reverse order -------------------------------------------

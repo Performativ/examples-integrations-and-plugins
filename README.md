@@ -2,6 +2,8 @@
 
 Code examples and documentation for building integrations with the Performativ platform.
 
+> **Live API docs**: Your tenant has interactive API documentation under **Menu > Documentation**. The examples here complement — not replace — those docs.
+
 ## Documentation
 
 | Guide | Description |

@@ -11,7 +11,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MATRIX_FILE="${REPO_ROOT}/.matrix.json"
+readonly MATRIX_FILE="${REPO_ROOT}/.matrix.json"
 
 if [ ! -f "$MATRIX_FILE" ]; then
     echo "FAIL: .matrix.json not found at ${MATRIX_FILE}"
@@ -20,32 +20,43 @@ fi
 
 MISSING=0
 
-# Map scenario IDs to expected file patterns per client
+# Scenario ID → file name mapping
+scenario_file() {
+    local scenario="$1"
+    case "$scenario" in
+        s1) echo "api-access" ;;
+        s2) echo "client-lifecycle" ;;
+        s3) echo "portfolio-setup" ;;
+        *)  echo "" ;;
+    esac
+}
+
+# Scenario ID → Java class name mapping
+scenario_class() {
+    local scenario="$1"
+    case "$scenario" in
+        s1) echo "ApiAccessScenario" ;;
+        s2) echo "ClientLifecycleScenario" ;;
+        s3) echo "PortfolioSetupScenario" ;;
+        *)  echo "" ;;
+    esac
+}
+
 check_cell() {
     local client="$1" scenario="$2"
-    local found=false
+    local file=""
 
     case "$client" in
         curl)
-            case "$scenario" in
-                s1) [ -f "${REPO_ROOT}/curl/api-access.sh" ] && found=true ;;
-                s2) [ -f "${REPO_ROOT}/curl/client-lifecycle.sh" ] && found=true ;;
-                s3) [ -f "${REPO_ROOT}/curl/portfolio-setup.sh" ] && found=true ;;
-            esac
+            local name
+            name=$(scenario_file "$scenario")
+            [ -n "$name" ] && file="${REPO_ROOT}/curl/${name}.sh"
             ;;
-        java-manual)
-            case "$scenario" in
-                s1) [ -f "${REPO_ROOT}/java/scenarios/src/test/java/com/performativ/scenarios/manual/ApiAccessScenario.java" ] && found=true ;;
-                s2) [ -f "${REPO_ROOT}/java/scenarios/src/test/java/com/performativ/scenarios/manual/ClientLifecycleScenario.java" ] && found=true ;;
-                s3) [ -f "${REPO_ROOT}/java/scenarios/src/test/java/com/performativ/scenarios/manual/PortfolioSetupScenario.java" ] && found=true ;;
-            esac
-            ;;
-        java-generated)
-            case "$scenario" in
-                s1) [ -f "${REPO_ROOT}/java/scenarios/src/test/java/com/performativ/scenarios/generated/ApiAccessScenario.java" ] && found=true ;;
-                s2) [ -f "${REPO_ROOT}/java/scenarios/src/test/java/com/performativ/scenarios/generated/ClientLifecycleScenario.java" ] && found=true ;;
-                s3) [ -f "${REPO_ROOT}/java/scenarios/src/test/java/com/performativ/scenarios/generated/PortfolioSetupScenario.java" ] && found=true ;;
-            esac
+        java-manual|java-generated)
+            local package="${client#java-}"
+            local class
+            class=$(scenario_class "$scenario")
+            [ -n "$class" ] && file="${REPO_ROOT}/java/scenarios/src/test/java/com/performativ/scenarios/${package}/${class}.java"
             ;;
         *)
             echo "  WARN: Unknown client '${client}' — skipping"
@@ -53,7 +64,7 @@ check_cell() {
             ;;
     esac
 
-    if $found; then
+    if [ -n "$file" ] && [ -f "$file" ]; then
         echo "  OK: ${client} / ${scenario}"
     else
         echo "  MISSING: ${client} / ${scenario}"
@@ -64,15 +75,15 @@ check_cell() {
 echo "Validating scenario parity against .matrix.json..."
 echo ""
 
-# Parse .matrix.json with python3 (available in CI and most dev environments)
+# Parse .matrix.json — pass file path as argument, not interpolated into code
 CELLS=$(python3 -c "
-import json
-with open('${MATRIX_FILE}') as f:
+import json, sys
+with open(sys.argv[1]) as f:
     matrix = json.load(f)
 for client, info in matrix['clients'].items():
     for scenario in info['scenarios']:
         print(f'{client} {scenario}')
-")
+" "$MATRIX_FILE")
 
 while IFS=' ' read -r client scenario; do
     check_cell "$client" "$scenario"

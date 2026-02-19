@@ -6,6 +6,7 @@ import com.performativ.client.api.PortfolioApi;
 import com.performativ.client.core.ApiClient;
 import com.performativ.client.core.ApiException;
 import com.performativ.client.model.*;
+
 import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -69,11 +70,14 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
     void createClient() throws ApiException {
         assertTrue(personId > 0, "Person must be created first");
 
+        StoreClientRequestPrimaryPerson primaryPerson = new StoreClientRequestPrimaryPerson();
+        primaryPerson.setPersonId(personId);
+
         StoreClientRequest req = new StoreClientRequest();
         req.name("Scenario-S3 Client");
         req.type("individual");
         req.isActive(true);
-        req.primaryPersonId(personId);
+        req.primaryPerson(primaryPerson);
 
         var response = clientApi.tenantClientsStore(req);
         assertNotNull(response);

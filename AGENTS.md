@@ -17,6 +17,16 @@ When strict mode causes a test failure, the fix is **always upstream in `openapi
 
 The generated client is a **canary** (see [ADR-002](docs/adr/002-openapi-strict-generation.md)). When it breaks, it means partners using code generators will hit the same issue. The correct response is to fix the spec, not hide the problem.
 
+### openapi.json — NEVER modify
+
+`openapi.json` is an upstream artifact. It is generated from the API gateway and copied into this repo as-is.
+
+- **NEVER** edit, patch, or programmatically modify `openapi.json`
+- **NEVER** add fields, fix schemas, or "help" the spec pass tests
+- **NEVER** suggest modifying the spec as a workaround
+
+When the spec is wrong, the fix happens **upstream in the API gateway** that generates it. This repo consumes the spec read-only. If the generated client fails because the spec is incomplete, that failure is the signal to fix the spec upstream — not to patch it here.
+
 ### Credentials — NEVER skip
 
 All scenarios require credentials. If credentials are missing:

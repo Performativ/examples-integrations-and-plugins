@@ -79,7 +79,7 @@ The token is a JWT valid for **10 minutes** (600 seconds).
 Use the JWT as a Bearer token:
 
 ```http
-GET /api/clients/123
+GET /api/v1/clients/123
 Authorization: Bearer {access_token}
 Accept: application/json
 ```
@@ -87,7 +87,7 @@ Accept: application/json
 ### curl Example
 
 ```bash
-curl -s "https://api.example.com/api/clients/123" \
+curl -s "https://api.example.com/api/v1/clients/123" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Accept: application/json"
 ```
@@ -105,7 +105,7 @@ PluginApiClient client = new PluginApiClient(
 );
 
 // Tokens are acquired and cached automatically
-JsonNode clientData = client.get("/api/clients/123");
+JsonNode clientData = client.get("/api/v1/clients/123");
 ```
 
 See [PluginApiClient.java](../java/webhook-receiver/src/main/java/com/performativ/plugin/PluginApiClient.java) for the full implementation.

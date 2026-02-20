@@ -2,7 +2,7 @@
 #
 # S1: API Access — curl example
 #
-# Demonstrates: acquire OAuth2 token, list clients.
+# Demonstrates: acquire OAuth2 token, list clients via v1 API.
 #
 # Usage:
 #   cp .env.example .env   # fill in credentials
@@ -18,7 +18,7 @@ acquire_token
 
 echo ""
 echo "=== List clients ==="
-CLIENTS=$(curl -s "${API}/api/clients" \
+CLIENTS=$(curl -s "${API}/api/v1/clients" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Accept: application/json")
 

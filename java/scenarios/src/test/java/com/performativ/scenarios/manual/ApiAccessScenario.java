@@ -10,7 +10,7 @@ import java.net.http.HttpResponse;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S1: API Access — acquire an OAuth2 token and call GET /api/clients.
+ * S1: API Access — acquire an OAuth2 token and call GET /api/v1/clients.
  *
  * <p>Verifies that credentials are valid and the API is reachable.
  * No entities are created or deleted.
@@ -30,9 +30,9 @@ class ApiAccessScenario extends BaseScenario {
         assertNotNull(token);
         assertFalse(token.isBlank());
 
-        HttpResponse<String> response = apiGet(token, "/api/clients");
+        HttpResponse<String> response = apiGet(token, "/api/v1/clients");
 
-        assertEquals(200, response.statusCode(), "Expected 200 from GET /api/clients");
+        assertEquals(200, response.statusCode(), "Expected 200 from GET /api/v1/clients");
 
         JsonNode body = objectMapper.readTree(response.body());
         assertTrue(body.has("data"), "Response should have 'data' field");

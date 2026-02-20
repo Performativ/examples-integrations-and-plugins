@@ -85,12 +85,12 @@ public final class WebhookDeliveryClient {
      * </ul>
      *
      * <p>API endpoint:
-     * {@code GET /api/plugins/{plugin}/instances/{instance}/webhook-deliveries}
+     * {@code GET /api/v1/plugins/{pluginId}/instances/{instanceId}/webhook-deliveries}
      *
      * @return parsed JSON response with delivery data
      */
     public JsonNode listDeliveries() throws IOException, InterruptedException {
-        String path = String.format("/api/plugins/%s/instances/%d/webhook-deliveries",
+        String path = String.format("/api/v1/plugins/%s/instances/%d/webhook-deliveries",
                 pluginSlug, instanceId);
 
         HttpRequest request = HttpRequest.newBuilder()
@@ -119,14 +119,14 @@ public final class WebhookDeliveryClient {
      * was temporarily unavailable and the delivery exhausted its automatic retries.
      *
      * <p>API endpoint:
-     * {@code POST /api/plugins/{plugin}/instances/{instance}/webhook-deliveries/{delivery}/replay}
+     * {@code POST /api/v1/plugins/{pluginId}/instances/{instanceId}/webhook-deliveries/{deliveryId}/replay}
      *
      * @param deliveryId the ID of the delivery to replay
      * @return parsed JSON response
      */
     public JsonNode replayDelivery(int deliveryId) throws IOException, InterruptedException {
         String path = String.format(
-                "/api/plugins/%s/instances/%d/webhook-deliveries/%d/replay",
+                "/api/v1/plugins/%s/instances/%d/webhook-deliveries/%d/replay",
                 pluginSlug, instanceId, deliveryId);
 
         HttpRequest request = HttpRequest.newBuilder()

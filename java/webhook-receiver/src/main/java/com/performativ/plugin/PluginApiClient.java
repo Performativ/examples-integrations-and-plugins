@@ -34,7 +34,7 @@ import java.util.Base64;
  * );
  *
  * // Fetch a client by ID
- * JsonNode clientData = client.get("/api/clients/123");
+ * JsonNode clientData = client.get("/api/v1/clients/123");
  * }</pre>
  *
  * <p>The client automatically requests and caches JWT access tokens,
@@ -84,7 +84,7 @@ public final class PluginApiClient {
     /**
      * Perform a GET request to the Performativ API.
      *
-     * @param path API path (e.g. "/api/clients/123")
+     * @param path API path (e.g. "/api/v1/clients/123")
      * @return parsed JSON response body
      * @throws IOException          if the request fails
      * @throws InterruptedException if the thread is interrupted

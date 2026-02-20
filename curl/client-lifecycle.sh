@@ -2,7 +2,8 @@
 #
 # S2: Client Lifecycle — curl example
 #
-# Demonstrates: acquire token, create Person + Client, read, update, delete both.
+# Demonstrates: acquire token, create Person + Client, link them,
+# read, update, delete both via v1 API.
 #
 # Usage:
 #   cp .env.example .env   # fill in credentials
@@ -24,12 +25,12 @@ cleanup() {
     echo "=== Cleanup ==="
     if [ -n "$CLIENT_ID" ]; then
         echo "Deleting Client ${CLIENT_ID}..."
-        curl -s -X DELETE "${API}/api/clients/${CLIENT_ID}" \
+        curl -s -X DELETE "${API}/api/v1/clients/${CLIENT_ID}" \
             -H "Authorization: Bearer ${TOKEN}" -o /dev/null -w "HTTP %{http_code}\n" || true
     fi
     if [ -n "$PERSON_ID" ]; then
         echo "Deleting Person ${PERSON_ID}..."
-        curl -s -X DELETE "${API}/api/persons/${PERSON_ID}" \
+        curl -s -X DELETE "${API}/api/v1/persons/${PERSON_ID}" \
             -H "Authorization: Bearer ${TOKEN}" -o /dev/null -w "HTTP %{http_code}\n" || true
     fi
 }
@@ -39,7 +40,7 @@ acquire_token
 
 echo ""
 echo "=== 2. Create Person ==="
-PERSON=$(curl -s -X POST "${API}/api/persons" \
+PERSON=$(curl -s -X POST "${API}/api/v1/persons" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
@@ -50,32 +51,41 @@ echo "Created Person ID: ${PERSON_ID}"
 
 echo ""
 echo "=== 3. Create Client ==="
-CLIENT=$(curl -s -X POST "${API}/api/clients" \
+CLIENT=$(curl -s -X POST "${API}/api/v1/clients" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
-    -d "{\"name\":\"Curl-S2 Client\",\"type\":\"individual\",\"is_active\":true,\"primary_person_id\":${PERSON_ID}}")
+    -d '{"name":"Curl-S2 Client","type":"individual","is_active":true,"currency_id":47}')
 
 CLIENT_ID=$(echo "$CLIENT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Created Client ID: ${CLIENT_ID}"
 
 echo ""
+echo "=== 3b. Link Person to Client ==="
+curl -s -X POST "${API}/api/v1/client-persons" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json" \
+    -d "{\"client_id\":${CLIENT_ID},\"person_id\":${PERSON_ID},\"is_primary\":true}" \
+    -o /dev/null -w "HTTP %{http_code}\n"
+
+echo ""
 echo "=== 4. Read back Client ==="
-curl -s "${API}/api/clients/${CLIENT_ID}" \
+curl -s "${API}/api/v1/clients/${CLIENT_ID}" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Accept: application/json" | python3 -m json.tool | head -20
 
 echo ""
 echo "=== 5. Update Client ==="
-curl -s -X PUT "${API}/api/clients/${CLIENT_ID}" \
+curl -s -X PUT "${API}/api/v1/clients/${CLIENT_ID}" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
-    -d '{"name":"Curl-S2 Client Updated"}' -o /dev/null -w "HTTP %{http_code}\n"
+    -d '{"name":"Curl-S2 Client Updated","type":"individual","currency_id":47}' -o /dev/null -w "HTTP %{http_code}\n"
 
 echo ""
 echo "=== 6. Read back Person ==="
-curl -s "${API}/api/persons/${PERSON_ID}" \
+curl -s "${API}/api/v1/persons/${PERSON_ID}" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Accept: application/json" | python3 -m json.tool | head -20
 

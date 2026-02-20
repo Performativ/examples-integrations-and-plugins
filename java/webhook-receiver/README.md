@@ -127,7 +127,7 @@ PluginApiClient client = new PluginApiClient(
     "backend-api"
 );
 
-JsonNode data = client.get("/api/clients/123");
+JsonNode data = client.get("/api/v1/clients/123");
 ```
 
 The client handles token acquisition and caching automatically.

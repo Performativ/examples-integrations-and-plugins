@@ -31,7 +31,7 @@ For automated monitoring or integration into your own tooling, the delivery endp
 ### Listing Deliveries
 
 ```http
-GET /api/plugins/{plugin}/instances/{instance}/webhook-deliveries
+GET /api/v1/plugins/{plugin}/instances/{instance}/webhook-deliveries
 Authorization: Bearer {user-jwt}
 Accept: application/json
 ```
@@ -72,7 +72,7 @@ Accept: application/json
 ### Replaying a Delivery
 
 ```http
-POST /api/plugins/{plugin}/instances/{instance}/webhook-deliveries/{delivery}/replay
+POST /api/v1/plugins/{plugin}/instances/{instance}/webhook-deliveries/{delivery}/replay
 Authorization: Bearer {user-jwt}
 ```
 

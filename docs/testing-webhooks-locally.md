@@ -71,7 +71,7 @@ tunnel  | INF +----------------------------+
 The poller uses a dedicated polling endpoint with cursor-based keyset pagination:
 
 ```
-GET /api/plugins/{slug}/instances/{id}/webhook-deliveries/poll
+GET /api/v1/plugins/{slug}/instances/{id}/webhook-deliveries/poll
     ?after={cursor}&limit=50
 ```
 

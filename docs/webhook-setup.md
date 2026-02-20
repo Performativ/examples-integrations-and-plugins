@@ -42,7 +42,7 @@ All webhook payloads follow this schema:
   "entity_id": 12345,
   "event": "Created",
   "updated_at": "2024-01-15T10:30:00.000000Z",
-  "url": "https://api.example.com/api/clients/12345",
+  "url": "https://api.example.com/api/v1/clients/12345",
   "custom_config": {
     "tenant_reference_id": "ref-123"
   }

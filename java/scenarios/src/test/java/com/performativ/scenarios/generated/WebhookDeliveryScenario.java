@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * S4: Webhook Delivery — create a Person via the generated client, poll the
- * delivery endpoint, verify that a Person.Created delivery appears, then delete.
+ * v1 delivery endpoint, verify that a Person.Created delivery appears, then delete.
  *
  * <p>Uses the generated client for Person CRUD (testing typed models) and raw
  * HTTP for the delivery poll endpoint (internal plugin management API).
@@ -74,7 +74,7 @@ class WebhookDeliveryScenario extends GeneratedClientScenario {
 
         String pluginSlug = dotenv.get("PLUGIN_SLUG");
         String instanceId = dotenv.get("PLUGIN_INSTANCE_ID");
-        String pollPath = String.format("/api/plugins/%s/instances/%s/webhook-deliveries/poll?limit=50",
+        String pollPath = String.format("/api/v1/plugins/%s/instances/%s/webhook-deliveries/poll?limit=50",
                 pluginSlug, instanceId);
 
         // Use raw HTTP for the delivery poll endpoint (plugin management API)
@@ -122,6 +122,6 @@ class WebhookDeliveryScenario extends GeneratedClientScenario {
     @AfterAll
     static void teardown() {
         if (token == null) return;
-        if (personId > 0) deleteEntity(token, "/api/persons/" + personId);
+        if (personId > 0) deleteEntity(token, "/api/v1/persons/" + personId);
     }
 }

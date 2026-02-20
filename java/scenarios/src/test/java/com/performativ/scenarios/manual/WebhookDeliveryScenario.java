@@ -9,7 +9,7 @@ import java.net.http.HttpResponse;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S4: Webhook Delivery — create a Person, poll the delivery endpoint,
+ * S4: Webhook Delivery — create a Person, poll the v1 delivery endpoint,
  * verify that a Person.Created delivery appears, then delete.
  *
  * <p>Uses the delivery-polling API as a CI-friendly verification approach.
@@ -38,7 +38,7 @@ class WebhookDeliveryScenario extends BaseScenario {
     @Test
     @Order(1)
     void createPerson() throws Exception {
-        JsonNode person = createEntity(token, "/api/persons",
+        JsonNode person = createEntity(token, "/api/v1/persons",
                 """
                 {"first_name":"Manual","last_name":"S4-WebhookDelivery","email":"manual-s4@example.com","language_code":"en"}
                 """);
@@ -61,7 +61,7 @@ class WebhookDeliveryScenario extends BaseScenario {
 
         String pluginSlug = dotenv.get("PLUGIN_SLUG");
         String instanceId = dotenv.get("PLUGIN_INSTANCE_ID");
-        String pollPath = String.format("/api/plugins/%s/instances/%s/webhook-deliveries/poll?limit=50",
+        String pollPath = String.format("/api/v1/plugins/%s/instances/%s/webhook-deliveries/poll?limit=50",
                 pluginSlug, instanceId);
 
         HttpResponse<String> response = apiGet(token, pollPath);
@@ -102,7 +102,7 @@ class WebhookDeliveryScenario extends BaseScenario {
     @Order(4)
     void deletePerson() throws Exception {
         assertTrue(personId > 0, "Person must be created first");
-        HttpResponse<String> response = apiDelete(token, "/api/persons/" + personId);
+        HttpResponse<String> response = apiDelete(token, "/api/v1/persons/" + personId);
         assertTrue(response.statusCode() < 300 || response.statusCode() == 404,
                 "Delete should succeed, got: " + response.statusCode());
         personId = 0;
@@ -111,6 +111,6 @@ class WebhookDeliveryScenario extends BaseScenario {
     @AfterAll
     static void teardown() {
         if (token == null) return;
-        if (personId > 0) deleteEntity(token, "/api/persons/" + personId);
+        if (personId > 0) deleteEntity(token, "/api/v1/persons/" + personId);
     }
 }

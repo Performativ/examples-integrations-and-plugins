@@ -3,7 +3,7 @@
 # S4: Webhook Delivery — curl example
 #
 # Demonstrates: acquire token, create a Person (to trigger webhook),
-# poll the delivery endpoint to verify the webhook was delivered, then clean up.
+# poll the v1 delivery endpoint to verify the webhook was delivered, then clean up.
 #
 # Usage:
 #   cp .env.example .env   # fill in credentials
@@ -30,7 +30,7 @@ cleanup() {
     echo "=== Cleanup ==="
     if [ -n "$PERSON_ID" ]; then
         echo "Deleting Person ${PERSON_ID}..."
-        curl -s -X DELETE "${API}/api/persons/${PERSON_ID}" \
+        curl -s -X DELETE "${API}/api/v1/persons/${PERSON_ID}" \
             -H "Authorization: Bearer ${TOKEN}" -o /dev/null -w "HTTP %{http_code}\n" || true
     fi
 }
@@ -40,7 +40,7 @@ acquire_token
 
 echo ""
 echo "=== 2. Create Person (to trigger webhook) ==="
-PERSON=$(curl -s -X POST "${API}/api/persons" \
+PERSON=$(curl -s -X POST "${API}/api/v1/persons" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
@@ -59,7 +59,7 @@ echo "=== 4. Poll webhook deliveries ==="
 # In production, your plugin receives webhooks as real-time HTTPS POSTs.
 # See java/webhook-receiver/ for a complete Spring Boot implementation,
 # and docs/webhook-setup.md + docs/testing-webhooks-locally.md for the full push-based flow.
-DELIVERIES=$(curl -s "${API}/api/plugins/${PLUGIN_SLUG}/instances/${PLUGIN_INSTANCE_ID}/webhook-deliveries/poll?limit=50" \
+DELIVERIES=$(curl -s "${API}/api/v1/plugins/${PLUGIN_SLUG}/instances/${PLUGIN_INSTANCE_ID}/webhook-deliveries/poll?limit=50" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Accept: application/json")
 

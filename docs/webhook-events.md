@@ -26,23 +26,23 @@ You can subscribe to events for any of these entity types:
 
 | Entity | API URL Pattern | Description |
 |--------|----------------|-------------|
-| `Client` | `/api/clients/{id}` | Client records |
-| `Portfolio` | `/api/portfolios/{id}` | Investment portfolios |
-| `Person` | `/api/persons/{id}` | Person records |
-| `Business` | `/api/businesses/{id}` | Business entities |
-| `Group` | `/api/groups/{id}` | Client groups |
-| `User` | `/api/users/{id}` | User accounts |
-| `CashAccount` | `/api/cash-accounts/{id}` | Cash accounts |
+| `Client` | `/api/v1/clients/{id}` | Client records |
+| `Portfolio` | `/api/v1/portfolios/{id}` | Investment portfolios |
+| `Person` | `/api/v1/persons/{id}` | Person records |
+| `Business` | `/api/v1/businesses/{id}` | Business entities |
+| `Group` | `/api/v1/groups/{id}` | Client groups |
+| `User` | `/api/v1/users/{id}` | User accounts |
+| `CashAccount` | `/api/v1/cash-accounts/{id}` | Cash accounts |
 | `CashAccountMovement` | null | Cash account movements (no direct URL) |
-| `Transaction` | `/api/transactions/{id}` | Financial transactions |
-| `Instrument` | `/api/instruments/{id}` | Financial instruments |
-| `Order` | `/api/orders/{id}` | Trading orders |
-| `OrderBatch` | `/api/order-batches/{id}` | Order batches |
-| `RebalancingProposal` | `/api/rebalancing-proposals/{id}` | Rebalancing proposals |
-| `ModelPortfolio` | `/api/model-portfolios/{id}` | Model portfolios |
+| `Transaction` | `/api/v1/transactions/{id}` | Financial transactions |
+| `Instrument` | `/api/v1/instruments/{id}` | Financial instruments |
+| `Order` | `/api/v1/orders/{id}` | Trading orders |
+| `OrderBatch` | `/api/v1/order-batches/{id}` | Order batches |
+| `RebalancingProposal` | `/api/v1/rebalancing-proposals/{id}` | Rebalancing proposals |
+| `ModelPortfolio` | `/api/v1/model-portfolios/{id}` | Model portfolios |
 | `Document` | null | Documents (no direct URL) |
 | `Report` | null | Reports (no direct URL) |
-| `OnboardingLink` | `/api/onboarding-links/{id}` | Onboarding links |
+| `OnboardingLink` | `/api/v1/onboarding-links/{id}` | Onboarding links |
 | `CustomFieldValue` | null | Custom field values (no direct URL) |
 
 Entities with `null` URL do not have a direct show endpoint. Use the index endpoint with filters to query them.
@@ -58,7 +58,7 @@ Entities with `null` URL do not have a direct show endpoint. Use the index endpo
   "entity_id": 12345,
   "event": "Created",
   "updated_at": "2024-01-15T10:30:00.000000Z",
-  "url": "https://api.example.com/api/clients/12345",
+  "url": "https://api.example.com/api/v1/clients/12345",
   "custom_config": {
     "tenant_reference_id": "ref-123",
     "custom_setting": "value"

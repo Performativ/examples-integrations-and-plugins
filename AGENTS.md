@@ -27,6 +27,16 @@ The generated client is a **canary** (see [ADR-002](docs/adr/002-openapi-strict-
 
 When the spec is wrong, the fix happens **upstream in the API gateway** that generates it. This repo consumes the spec read-only. If the generated client fails because the spec is incomplete, that failure is the signal to fix the spec upstream — not to patch it here.
 
+### Spec validation — NEVER skip
+
+The OpenAPI generator's `skipValidateSpec` must remain `false`. When the spec has validation errors (duplicate operationIds, invalid schemas, etc.), the generation must **fail** — not silently produce a broken client.
+
+- **NEVER** set `skipValidateSpec` to `true`
+- **NEVER** add `--skip-validate-spec` to CLI invocations
+- **NEVER** work around validation errors by suppressing them
+
+Validation failures are upstream spec bugs that need fixing in the API gateway. The generation failure is the signal — same principle as strict deserialization (see [ADR-002](docs/adr/002-openapi-strict-generation.md)).
+
 ### Credentials — NEVER skip
 
 All scenarios require credentials. If credentials are missing:

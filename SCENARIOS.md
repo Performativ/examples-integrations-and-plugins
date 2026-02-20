@@ -1,8 +1,10 @@
 # Scenarios
 
-Five core scenarios exercise the Performativ API at increasing complexity. Each scenario is implemented in three ways — [curl](curl/), [java/manual](java/scenarios/) (raw HTTP), and [java/generated](java/scenarios/) (OpenAPI-generated typed client) — so the same operations are verified across approaches.
+Five core scenarios exercise the Performativ API v1 endpoints at increasing complexity. Each scenario is implemented in three ways — [curl](curl/), [java/manual](java/scenarios/) (raw HTTP), and [java/generated](java/scenarios/) (OpenAPI-generated typed client) — so the same operations are verified across approaches.
 
 Every scenario acquires an OAuth2 token via `client_credentials` before calling the API, except S5 which uses API key auth.
+
+All v1 endpoints use the `/api/v1/` path prefix.
 
 ## S1: API Access
 
@@ -11,25 +13,26 @@ Verify that credentials work and the API is reachable.
 | Step | Method | Path | Expected |
 |------|--------|------|----------|
 | Acquire token | POST | `{TOKEN_BROKER_URL}/oauth/token` | 200, `access_token` present |
-| List clients | GET | `/api/clients` | 200, JSON with `data` array |
+| List clients | GET | `/api/v1/clients` | 200, JSON with `data` array |
 
 No entities are created or deleted.
 
 ## S2: Client Lifecycle
 
-Create a Person and Client, read them back, update the Client, then delete both.
+Create a Person and Client, link them, read them back, update the Client, then delete both.
 
 | Step | Method | Path | Expected |
 |------|--------|------|----------|
-| Create Person | POST | `/api/persons` | 201 or 200, `data.id` > 0 |
-| Create Client | POST | `/api/clients` | 201 or 200, `data.id` > 0 |
-| Read Client | GET | `/api/clients/{id}` | 200, matches created |
-| Update Client | PUT | `/api/clients/{id}` | 200, name updated |
-| Read Person | GET | `/api/persons/{id}` | 200, matches created |
-| Delete Client | DELETE | `/api/clients/{id}` | 200 or 204 |
-| Delete Person | DELETE | `/api/persons/{id}` | 200 or 204 |
+| Create Person | POST | `/api/v1/persons` | 201, `data.id` > 0 |
+| Create Client | POST | `/api/v1/clients` | 201, `data.id` > 0 |
+| Link Person to Client | POST | `/api/v1/client-persons` | 201, links person as primary |
+| Read Client | GET | `/api/v1/clients/{id}` | 200, matches created |
+| Update Client | PUT | `/api/v1/clients/{id}` | 200, name updated |
+| Read Person | GET | `/api/v1/persons/{id}` | 200, matches created |
+| Delete Client | DELETE | `/api/v1/clients/{id}` | 200 or 204 |
+| Delete Person | DELETE | `/api/v1/persons/{id}` | 200 or 204 |
 
-Entity relationships: Client references Person via `primary_person_id`. Delete Client before Person (FK dependency).
+Entity relationships: In v1, Person is linked to Client via the `/v1/client-persons` join resource (with `is_primary`). Client requires `currency_id`. Delete Client before Person (FK dependency; client-person link cascades with client deletion).
 
 ## S3: Portfolio Setup
 
@@ -37,16 +40,17 @@ Create the full prerequisite chain (Person, Client, Portfolio), read them back, 
 
 | Step | Method | Path | Expected |
 |------|--------|------|----------|
-| Create Person | POST | `/api/persons` | 201 or 200, `data.id` > 0 |
-| Create Client | POST | `/api/clients` | 201 or 200, `data.id` > 0 |
-| Create Portfolio | POST | `/api/clients/{clientId}/portfolios` | 201 or 200, `data.id` > 0 |
-| Read Portfolio | GET | `/api/portfolios/{id}` | 200, matches created |
-| Update Portfolio | PUT | `/api/portfolios/{id}` | 200, name updated |
-| Delete Portfolio | DELETE | `/api/portfolios/{id}` | 200 or 204 |
-| Delete Client | DELETE | `/api/clients/{id}` | 200 or 204 |
-| Delete Person | DELETE | `/api/persons/{id}` | 200 or 204 |
+| Create Person | POST | `/api/v1/persons` | 201, `data.id` > 0 |
+| Create Client | POST | `/api/v1/clients` | 201, `data.id` > 0 |
+| Link Person to Client | POST | `/api/v1/client-persons` | 201, links person as primary |
+| Create Portfolio | POST | `/api/v1/portfolios` | 201, `data.id` > 0 |
+| Read Portfolio | GET | `/api/v1/portfolios/{id}` | 200, matches created |
+| Update Portfolio | PUT | `/api/v1/portfolios/{id}` | 200, name updated |
+| Delete Portfolio | DELETE | `/api/v1/portfolios/{id}` | 200 or 204 |
+| Delete Client | DELETE | `/api/v1/clients/{id}` | 200 or 204 |
+| Delete Person | DELETE | `/api/v1/persons/{id}` | 200 or 204 |
 
-Entity relationships: Portfolio belongs to Client (`currency_id` = 47 / EUR). Client references Person. Delete in reverse order.
+Entity relationships: Portfolio belongs to Client (passed as `client_id` in the request body, `currency_id` = 47 / EUR). Person linked to Client via `client-persons`. Delete in reverse order.
 
 ## S4: Webhook Delivery
 
@@ -56,11 +60,11 @@ Verify that creating an entity triggers a webhook delivery. This scenario uses t
 
 | Step | Method | Path | Expected |
 |------|--------|------|----------|
-| Create Person | POST | `/api/persons` | 201 or 200, `data.id` > 0 |
+| Create Person | POST | `/api/v1/persons` | 201, `data.id` > 0 |
 | Wait for delivery | — | — | Brief pause for async delivery processing |
-| Poll deliveries | GET | `/api/plugins/{slug}/instances/{id}/webhook-deliveries/poll?limit=50` | 200, `data` array |
+| Poll deliveries | GET | `/api/v1/plugins/{pluginId}/instances/{instanceId}/webhook-deliveries/poll?limit=50` | 200, `data` array |
 | Find matching delivery | — | — | Delivery with `entity=Person`, `event=Created`, matching `entity_id` |
-| Delete Person | DELETE | `/api/persons/{id}` | 200 or 204 |
+| Delete Person | DELETE | `/api/v1/persons/{id}` | 200 or 204 |
 
 Requires `PLUGIN_SLUG` and `PLUGIN_INSTANCE_ID` in `.env`. The poll endpoint uses cursor-based pagination; this scenario reads the latest batch and searches for the expected delivery.
 

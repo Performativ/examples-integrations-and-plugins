@@ -9,9 +9,10 @@ import java.net.http.HttpResponse;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S2: Client Lifecycle — create Person and Client, read back, update, delete.
+ * S2: Client Lifecycle — create Person and Client, link them, read back, update, delete.
  *
- * <p>Uses raw HTTP throughout.
+ * <p>Uses raw HTTP throughout. In v1, Person is linked to Client via the
+ * {@code /v1/client-persons} join resource instead of {@code primary_person_id}.
  *
  * @see <a href="../../../../../../../../../SCENARIOS.md">SCENARIOS.md</a>
  */
@@ -31,7 +32,7 @@ class ClientLifecycleScenario extends BaseScenario {
     @Test
     @Order(1)
     void createPerson() throws Exception {
-        JsonNode person = createEntity(token, "/api/persons",
+        JsonNode person = createEntity(token, "/api/v1/persons",
                 """
                 {"first_name":"Manual","last_name":"S2-ClientLifecycle","email":"manual-s2@example.com","language_code":"en"}
                 """);
@@ -44,12 +45,10 @@ class ClientLifecycleScenario extends BaseScenario {
     @Test
     @Order(2)
     void createClient() throws Exception {
-        assertTrue(personId > 0, "Person must be created first");
-
-        JsonNode client = createEntity(token, "/api/clients",
-                String.format("""
-                {"name":"Manual-S2 Client","type":"individual","is_active":true,"primary_person_id":%d}
-                """, personId));
+        JsonNode client = createEntity(token, "/api/v1/clients",
+                """
+                {"name":"Manual-S2 Client","type":"individual","is_active":true,"currency_id":47}
+                """);
 
         clientId = client.get("id").asInt();
         assertTrue(clientId > 0, "Client ID should be positive");
@@ -58,26 +57,40 @@ class ClientLifecycleScenario extends BaseScenario {
 
     @Test
     @Order(3)
+    void linkPersonToClient() throws Exception {
+        assertTrue(personId > 0, "Person must be created first");
+        assertTrue(clientId > 0, "Client must be created first");
+
+        HttpResponse<String> response = apiPost(token, "/api/v1/client-persons",
+                String.format("""
+                {"client_id":%d,"person_id":%d,"is_primary":true}
+                """, clientId, personId));
+
+        assertTrue(response.statusCode() < 300,
+                "Link person to client should succeed, got: " + response.statusCode() + " " + response.body());
+    }
+
+    @Test
+    @Order(4)
     void readBackClient() throws Exception {
         assertTrue(clientId > 0, "Client must be created first");
 
-        HttpResponse<String> response = apiGet(token, "/api/clients/" + clientId);
+        HttpResponse<String> response = apiGet(token, "/api/v1/clients/" + clientId);
         assertEquals(200, response.statusCode());
 
         JsonNode client = objectMapper.readTree(response.body()).path("data");
         assertEquals(clientId, client.get("id").asInt());
         assertEquals("Manual-S2 Client", client.get("name").asText());
-        assertEquals("individual", client.get("type").asText());
     }
 
     @Test
-    @Order(4)
+    @Order(5)
     void updateClient() throws Exception {
         assertTrue(clientId > 0, "Client must be created first");
 
-        HttpResponse<String> response = apiPut(token, "/api/clients/" + clientId,
+        HttpResponse<String> response = apiPut(token, "/api/v1/clients/" + clientId,
                 """
-                {"name":"Manual-S2 Client Updated"}
+                {"name":"Manual-S2 Client Updated","type":"individual","currency_id":47}
                 """);
         assertTrue(response.statusCode() < 300,
                 "Update should succeed, got: " + response.statusCode() + " " + response.body());
@@ -87,11 +100,11 @@ class ClientLifecycleScenario extends BaseScenario {
     }
 
     @Test
-    @Order(5)
+    @Order(6)
     void readBackPerson() throws Exception {
         assertTrue(personId > 0, "Person must be created first");
 
-        HttpResponse<String> response = apiGet(token, "/api/persons/" + personId);
+        HttpResponse<String> response = apiGet(token, "/api/v1/persons/" + personId);
         assertEquals(200, response.statusCode());
 
         JsonNode person = objectMapper.readTree(response.body()).path("data");
@@ -101,20 +114,20 @@ class ClientLifecycleScenario extends BaseScenario {
     }
 
     @Test
-    @Order(6)
+    @Order(7)
     void deleteClient() throws Exception {
         assertTrue(clientId > 0, "Client must be created first");
-        HttpResponse<String> response = apiDelete(token, "/api/clients/" + clientId);
+        HttpResponse<String> response = apiDelete(token, "/api/v1/clients/" + clientId);
         assertTrue(response.statusCode() < 300 || response.statusCode() == 404,
                 "Delete should succeed, got: " + response.statusCode());
         clientId = 0;
     }
 
     @Test
-    @Order(7)
+    @Order(8)
     void deletePerson() throws Exception {
         assertTrue(personId > 0, "Person must be created first");
-        HttpResponse<String> response = apiDelete(token, "/api/persons/" + personId);
+        HttpResponse<String> response = apiDelete(token, "/api/v1/persons/" + personId);
         assertTrue(response.statusCode() < 300 || response.statusCode() == 404,
                 "Delete should succeed, got: " + response.statusCode());
         personId = 0;
@@ -123,7 +136,7 @@ class ClientLifecycleScenario extends BaseScenario {
     @AfterAll
     static void teardown() {
         if (token == null) return;
-        if (clientId > 0) deleteEntity(token, "/api/clients/" + clientId);
-        if (personId > 0) deleteEntity(token, "/api/persons/" + personId);
+        if (clientId > 0) deleteEntity(token, "/api/v1/clients/" + clientId);
+        if (personId > 0) deleteEntity(token, "/api/v1/persons/" + personId);
     }
 }

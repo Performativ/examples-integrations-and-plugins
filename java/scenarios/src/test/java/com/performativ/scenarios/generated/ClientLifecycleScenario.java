@@ -1,6 +1,7 @@
 package com.performativ.scenarios.generated;
 
 import com.performativ.client.api.ClientApi;
+import com.performativ.client.api.ClientPersonApi;
 import com.performativ.client.api.PersonApi;
 import com.performativ.client.core.ApiClient;
 import com.performativ.client.core.ApiException;
@@ -11,14 +12,21 @@ import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S2: Client Lifecycle — create Person and Client, read, update, delete
- * using the generated OpenAPI client exclusively.
+ * S2: Client Lifecycle — create Person and Client, link them, read, update, delete
+ * using the generated OpenAPI client exclusively (v1 endpoints).
  *
  * <p>Strict: no raw HTTP fallbacks. If the generated client fails
  * (deserialization, wrong types, etc.), the test fails — surfacing spec bugs.
  *
+ * <p>In v1, Person is linked to Client via the {@code /v1/client-persons}
+ * join resource instead of {@code primary_person_id} on the client.
+ *
  * <p>Cleanup uses raw HTTP to ensure entities are deleted even when the
  * generated client has issues.
+ *
+ * <p><b>Note:</b> Generated method/model names below are provisional —
+ * they will be updated after the upstream spec duplicate operationId fix
+ * and client regeneration.
  *
  * @see <a href="../../../../../../../../../SCENARIOS.md">SCENARIOS.md</a>
  */
@@ -28,6 +36,7 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
     private static String token;
     private static PersonApi personApi;
     private static ClientApi clientApi;
+    private static ClientPersonApi clientPersonApi;
 
     private static int personId;
     private static int clientId;
@@ -40,11 +49,14 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
         ApiClient apiClient = createApiClient(token);
         personApi = new PersonApi(apiClient);
         clientApi = new ClientApi(apiClient);
+        clientPersonApi = new ClientPersonApi(apiClient);
     }
 
     @Test
     @Order(1)
     void createPerson() throws ApiException {
+        // TODO: After regen, model name may change to AppHttpRequestsApiV1StorePersonRequest
+        // or similar based on the v1 schema name. Update accordingly.
         StorePersonRequest req = new StorePersonRequest();
         req.firstName("Gen");
         req.lastName("S2-ClientLifecycle");
@@ -62,16 +74,13 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
     @Test
     @Order(2)
     void createClient() throws ApiException {
-        assertTrue(personId > 0, "Person must be created first");
-
-        StoreClientRequestPrimaryPerson primaryPerson = new StoreClientRequestPrimaryPerson();
-        primaryPerson.setPersonId(personId);
-
+        // v1: no primary_person_id, requires currency_id
+        // TODO: After regen, model name may change for v1 StoreClientRequest
         StoreClientRequest req = new StoreClientRequest();
         req.name("Gen-S2 Client");
         req.type("individual");
         req.isActive(true);
-        req.primaryPerson(primaryPerson);
+        req.currencyId(47);
 
         var response = clientApi.tenantClientsStore(req);
         assertNotNull(response, "Client store response should not be null");
@@ -85,6 +94,22 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
 
     @Test
     @Order(3)
+    void linkPersonToClient() throws ApiException {
+        assertTrue(personId > 0, "Person must be created first");
+        assertTrue(clientId > 0, "Client must be created first");
+
+        // TODO: After regen, update to use the v1 generated model and method
+        // for POST /v1/client-persons
+        StoreClientPersonRequest req = new StoreClientPersonRequest();
+        req.clientId(clientId);
+        req.personId(personId);
+        req.isPrimary(true);
+
+        clientPersonApi.clientPersonsStore(req);
+    }
+
+    @Test
+    @Order(4)
     void readClient() throws ApiException {
         assertTrue(clientId > 0, "Client must be created first");
 
@@ -98,24 +123,26 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(4)
+    @Order(5)
     void updateClient() throws ApiException {
         assertTrue(clientId > 0, "Client must be created first");
 
+        // v1: update requires name, type, currency_id
         UpdateClientRequest req = new UpdateClientRequest();
         req.name("Gen-S2 Client Updated");
+        req.type("individual");
+        req.currencyId(47);
 
         var response = clientApi.tenantClientsUpdate(clientId, req);
         assertNotNull(response, "Client update response should not be null");
 
-        // Read back to verify the update through the typed model
         var readBack = clientApi.tenantClientsShow(clientId);
         assertEquals("Gen-S2 Client Updated", readBack.getData().getName(),
                 "Updated name should persist — verifies update response model");
     }
 
     @Test
-    @Order(5)
+    @Order(6)
     void readPerson() throws ApiException {
         assertTrue(personId > 0, "Person must be created first");
 
@@ -131,7 +158,7 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(6)
+    @Order(7)
     void deleteClient() throws ApiException {
         assertTrue(clientId > 0, "Client must be created first");
         clientApi.tenantClientsDestroy(clientId);
@@ -139,7 +166,7 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(7)
+    @Order(8)
     void deletePerson() throws ApiException {
         assertTrue(personId > 0, "Person must be created first");
         personApi.tenantPersonsDestroy(personId);
@@ -150,7 +177,7 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
     static void teardown() {
         if (token == null) return;
         // Cleanup uses raw HTTP — never fails due to spec bugs
-        if (clientId > 0) deleteEntity(token, "/api/clients/" + clientId);
-        if (personId > 0) deleteEntity(token, "/api/persons/" + personId);
+        if (clientId > 0) deleteEntity(token, "/api/v1/clients/" + clientId);
+        if (personId > 0) deleteEntity(token, "/api/v1/persons/" + personId);
     }
 }

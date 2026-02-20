@@ -9,9 +9,12 @@ import java.net.http.HttpResponse;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S3: Portfolio Setup — create Person, Client, Portfolio, read back, update, delete all.
+ * S3: Portfolio Setup — create Person, Client, Portfolio via v1 API,
+ * read back, update, delete all.
  *
  * <p>Uses raw HTTP throughout. Deletes in reverse dependency order.
+ * In v1, Person is linked to Client via {@code /v1/client-persons} and
+ * Portfolio is created at {@code /v1/portfolios} with {@code client_id} in the body.
  *
  * @see <a href="../../../../../../../../../SCENARIOS.md">SCENARIOS.md</a>
  */
@@ -29,12 +32,12 @@ class PortfolioSetupScenario extends BaseScenario {
         token = acquireToken();
     }
 
-    // -- Create chain: Person -> Client -> Portfolio -----------------------
+    // -- Create chain: Person -> Client -> link -> Portfolio ------------------
 
     @Test
     @Order(1)
     void createPerson() throws Exception {
-        JsonNode person = createEntity(token, "/api/persons",
+        JsonNode person = createEntity(token, "/api/v1/persons",
                 """
                 {"first_name":"Manual","last_name":"S3-PortfolioSetup","email":"manual-s3@example.com","language_code":"en"}
                 """);
@@ -46,12 +49,10 @@ class PortfolioSetupScenario extends BaseScenario {
     @Test
     @Order(2)
     void createClient() throws Exception {
-        assertTrue(personId > 0, "Person must be created first");
-
-        JsonNode client = createEntity(token, "/api/clients",
-                String.format("""
-                {"name":"Manual-S3 Client","type":"individual","is_active":true,"primary_person_id":%d}
-                """, personId));
+        JsonNode client = createEntity(token, "/api/v1/clients",
+                """
+                {"name":"Manual-S3 Client","type":"individual","is_active":true,"currency_id":47}
+                """);
 
         clientId = client.get("id").asInt();
         assertTrue(clientId > 0, "Client ID should be positive");
@@ -59,13 +60,28 @@ class PortfolioSetupScenario extends BaseScenario {
 
     @Test
     @Order(3)
+    void linkPersonToClient() throws Exception {
+        assertTrue(personId > 0, "Person must be created first");
+        assertTrue(clientId > 0, "Client must be created first");
+
+        HttpResponse<String> response = apiPost(token, "/api/v1/client-persons",
+                String.format("""
+                {"client_id":%d,"person_id":%d,"is_primary":true}
+                """, clientId, personId));
+
+        assertTrue(response.statusCode() < 300,
+                "Link person to client should succeed, got: " + response.statusCode() + " " + response.body());
+    }
+
+    @Test
+    @Order(4)
     void createPortfolio() throws Exception {
         assertTrue(clientId > 0, "Client must be created first");
 
-        JsonNode portfolio = createEntity(token, "/api/clients/" + clientId + "/portfolios",
-                """
-                {"name":"Manual-S3 Portfolio","currency_id":47}
-                """);
+        JsonNode portfolio = createEntity(token, "/api/v1/portfolios",
+                String.format("""
+                {"name":"Manual-S3 Portfolio","client_id":%d,"currency_id":47}
+                """, clientId));
 
         portfolioId = portfolio.get("id").asInt();
         assertTrue(portfolioId > 0, "Portfolio ID should be positive");
@@ -75,11 +91,11 @@ class PortfolioSetupScenario extends BaseScenario {
     // -- Read back ---------------------------------------------------------
 
     @Test
-    @Order(4)
+    @Order(5)
     void readBackPortfolio() throws Exception {
         assertTrue(portfolioId > 0, "Portfolio must be created first");
 
-        HttpResponse<String> response = apiGet(token, "/api/portfolios/" + portfolioId);
+        HttpResponse<String> response = apiGet(token, "/api/v1/portfolios/" + portfolioId);
         assertEquals(200, response.statusCode());
 
         JsonNode portfolio = objectMapper.readTree(response.body()).path("data");
@@ -90,13 +106,13 @@ class PortfolioSetupScenario extends BaseScenario {
     // -- Update ------------------------------------------------------------
 
     @Test
-    @Order(5)
+    @Order(6)
     void updatePortfolio() throws Exception {
         assertTrue(portfolioId > 0, "Portfolio must be created first");
 
-        HttpResponse<String> response = apiPut(token, "/api/portfolios/" + portfolioId,
+        HttpResponse<String> response = apiPut(token, "/api/v1/portfolios/" + portfolioId,
                 """
-                {"name":"Manual-S3 Portfolio Updated"}
+                {"name":"Manual-S3 Portfolio Updated","currency_id":47}
                 """);
         assertTrue(response.statusCode() < 300,
                 "Update should succeed, got: " + response.statusCode() + " " + response.body());
@@ -105,30 +121,30 @@ class PortfolioSetupScenario extends BaseScenario {
     // -- Delete in reverse order -------------------------------------------
 
     @Test
-    @Order(6)
+    @Order(7)
     void deletePortfolio() throws Exception {
         assertTrue(portfolioId > 0, "Portfolio must be created first");
-        HttpResponse<String> response = apiDelete(token, "/api/portfolios/" + portfolioId);
+        HttpResponse<String> response = apiDelete(token, "/api/v1/portfolios/" + portfolioId);
         assertTrue(response.statusCode() < 300 || response.statusCode() == 404,
                 "Delete should succeed, got: " + response.statusCode());
         portfolioId = 0;
     }
 
     @Test
-    @Order(7)
+    @Order(8)
     void deleteClient() throws Exception {
         assertTrue(clientId > 0, "Client must be created first");
-        HttpResponse<String> response = apiDelete(token, "/api/clients/" + clientId);
+        HttpResponse<String> response = apiDelete(token, "/api/v1/clients/" + clientId);
         assertTrue(response.statusCode() < 300 || response.statusCode() == 404,
                 "Delete should succeed, got: " + response.statusCode());
         clientId = 0;
     }
 
     @Test
-    @Order(8)
+    @Order(9)
     void deletePerson() throws Exception {
         assertTrue(personId > 0, "Person must be created first");
-        HttpResponse<String> response = apiDelete(token, "/api/persons/" + personId);
+        HttpResponse<String> response = apiDelete(token, "/api/v1/persons/" + personId);
         assertTrue(response.statusCode() < 300 || response.statusCode() == 404,
                 "Delete should succeed, got: " + response.statusCode());
         personId = 0;
@@ -137,8 +153,8 @@ class PortfolioSetupScenario extends BaseScenario {
     @AfterAll
     static void teardown() {
         if (token == null) return;
-        if (portfolioId > 0) deleteEntity(token, "/api/portfolios/" + portfolioId);
-        if (clientId > 0) deleteEntity(token, "/api/clients/" + clientId);
-        if (personId > 0) deleteEntity(token, "/api/persons/" + personId);
+        if (portfolioId > 0) deleteEntity(token, "/api/v1/portfolios/" + portfolioId);
+        if (clientId > 0) deleteEntity(token, "/api/v1/clients/" + clientId);
+        if (personId > 0) deleteEntity(token, "/api/v1/persons/" + personId);
     }
 }

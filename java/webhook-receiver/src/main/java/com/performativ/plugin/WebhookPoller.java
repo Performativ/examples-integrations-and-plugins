@@ -26,7 +26,7 @@ import java.util.Map;
  *
  * <p>The poller calls the dedicated poll endpoint:
  * <pre>
- * GET /api/plugins/{slug}/instances/{id}/webhook-deliveries/poll
+ * GET /api/v1/plugins/{pluginId}/instances/{instanceId}/webhook-deliveries/poll
  *     ?after={cursor}&amp;limit={limit}
  * </pre>
  *
@@ -229,7 +229,7 @@ public class WebhookPoller {
 
     private String buildPollPath() {
         StringBuilder path = new StringBuilder();
-        path.append(String.format("/api/plugins/%s/instances/%d/webhook-deliveries/poll",
+        path.append(String.format("/api/v1/plugins/%s/instances/%d/webhook-deliveries/poll",
                 pluginSlug, instanceId));
 
         path.append("?limit=").append(batchSize);

@@ -16,11 +16,9 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * <p>Strict: if the generated {@link ClientApi} fails, the test fails.
  *
- * <p>Note: {@code tenantClientsIndex} returns {@code Object} because the OpenAPI spec
- * does not define a typed response schema for the index endpoint. This is itself a
- * spec gap — the manual scenario verifies the same endpoint with raw HTTP. Here we
- * verify that the call succeeds and the response structure is a JSON object with a
- * {@code data} array, which exercises the generated client's HTTP layer and auth.
+ * <p>Note: the v1 client index method name will be determined after regeneration
+ * from the fixed upstream spec (see duplicate operationId issue on
+ * {@code persons.address.upsert} and {@code clients.business.upsert}).
  *
  * @see <a href="../../../../../../../../../SCENARIOS.md">SCENARIOS.md</a>
  */
@@ -39,8 +37,9 @@ class ApiAccessScenario extends GeneratedClientScenario {
     @Test
     @SuppressWarnings("unchecked")
     void listClientsViaGeneratedClient() throws ApiException {
-        // tenantClientsIndex returns Object (untyped) — the spec doesn't define a
-        // response schema for this endpoint. Jackson deserializes it to a Map.
+        // TODO: After spec fix + regen, update method name from tenantClientsIndex to
+        // the v1 equivalent (likely clientsIndex). The generated method will use
+        // GET /v1/clients via the spec's clients.index operationId.
         Object response = clientApi.tenantClientsIndex(
                 null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null);

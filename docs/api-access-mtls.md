@@ -82,7 +82,7 @@ Note: With mTLS, the `client_id` is sent in the request body (not as Basic auth)
 Same as client_secret -- use the JWT as a Bearer token:
 
 ```bash
-curl -s "https://api.example.com/api/clients/123" \
+curl -s "https://api.example.com/api/v1/clients/123" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Accept: application/json"
 ```

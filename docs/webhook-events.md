@@ -83,7 +83,7 @@ Entities with `null` URL do not have a direct show endpoint. Use the index endpo
 
 ```json
 {
-  "event_id": "8ca8c913-aeae-22e2-91c5-11d05ge541d9",
+  "event_id": "8ca8c913-aeae-42e2-91c5-11d05ae541d9",
   "entity": "Overall",
   "entity_id": 0,
   "event": "DailyHeartBeat",

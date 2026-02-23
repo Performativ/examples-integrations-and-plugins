@@ -11,8 +11,11 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -147,6 +150,47 @@ public abstract class BaseScenario {
                 .header("Authorization", "Bearer " + token)
                 .header("Accept", "application/json")
                 .DELETE()
+                .timeout(Duration.ofSeconds(30))
+                .build();
+
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    /**
+     * Perform an authenticated multipart POST request. Uploads a file along with
+     * additional form fields. Used for document upload endpoints.
+     */
+    protected static HttpResponse<String> apiPostMultipart(String token, String path,
+            Path filePath, String fileFieldName, Map<String, String> fields)
+            throws IOException, InterruptedException {
+
+        String boundary = "----FormBoundary" + UUID.randomUUID().toString().replace("-", "");
+        var body = new StringBuilder();
+
+        // File part
+        body.append("--").append(boundary).append("\r\n");
+        body.append("Content-Disposition: form-data; name=\"").append(fileFieldName)
+                .append("\"; filename=\"").append(filePath.getFileName()).append("\"\r\n");
+        body.append("Content-Type: application/octet-stream\r\n\r\n");
+        body.append(java.nio.file.Files.readString(filePath, StandardCharsets.UTF_8));
+        body.append("\r\n");
+
+        // Additional fields
+        for (var entry : fields.entrySet()) {
+            body.append("--").append(boundary).append("\r\n");
+            body.append("Content-Disposition: form-data; name=\"")
+                    .append(entry.getKey()).append("\"\r\n\r\n");
+            body.append(entry.getValue()).append("\r\n");
+        }
+
+        body.append("--").append(boundary).append("--\r\n");
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(apiBaseUrl() + path))
+                .header("Authorization", "Bearer " + token)
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .header("Accept", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
                 .timeout(Duration.ofSeconds(30))
                 .build();
 

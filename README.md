@@ -18,13 +18,17 @@ Code examples and documentation for building integrations with the Performativ p
 
 ## Code Examples
 
-Five core scenarios ([S1–S5](SCENARIOS.md)) are implemented across three approaches:
+Seven core scenarios ([S1–S7](SCENARIOS.md)) are implemented across three approaches:
 
 | Approach | Description | Scenarios |
 |----------|-------------|-----------|
-| [curl/](curl/) | Shell scripts using curl -- simplest, no build tools | S1–S5 |
-| [java/manual](java/scenarios/) | Raw HTTP with `java.net.http` -- no dependencies beyond JDK | S1–S5 |
-| [java/generated](java/scenarios/) | OpenAPI-generated typed client -- strict spec conformance | S1–S5 |
+| [curl/](curl/) | Shell scripts using curl -- simplest, no build tools | S1–S7 |
+| [java/manual](java/scenarios/) | Raw HTTP with `java.net.http` -- no dependencies beyond JDK | S1–S7 |
+| [java/generated](java/scenarios/) | OpenAPI-generated typed client -- strict spec conformance | S1–S7 |
+
+S1–S5 cover core CRUD and infrastructure. **S6–S7 are journey scenarios** that exercise the advisory workflow end-to-end:
+- **S6: Advisory Agreement** — document upload → signing envelope → advice context → advisory agreement → submit-signing → mark signed
+- **S7: Start Advise** — full advice session lifecycle including signed agreement prerequisite (created → data_ready → active → ready_to_sign → signed)
 
 The manual scenarios verify API behavior using raw HTTP. The generated scenarios use the OpenAPI-generated client with **no fallbacks** -- if the generated client fails (wrong types, deserialization errors), the test fails, immediately surfacing spec bugs.
 
@@ -62,7 +66,7 @@ Fill in the values from your credential bundle:
 | `PLUGIN_CLIENT_SECRET` | From the credential bundle |
 | `WEBHOOK_SIGNING_KEY` | Shown when creating the plugin (displayed once) |
 | `PLUGIN_INSTANCE_ID` | From the credential bundle (the `instance_id` field) |
-| `PLUGIN_SLUG` | Your plugin's slug (visible in the plugin URL) |
+| `PLUGIN_SLUG` | Your plugin's identifier (from the credential bundle) |
 
 ### 3. Receive Webhooks (Java)
 

@@ -27,4 +27,16 @@ echo "Got ${COUNT} clients"
 echo "$CLIENTS" | python3 -m json.tool | head -20
 
 echo ""
+echo "=== Verify unauthenticated access is rejected ==="
+UNAUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API}/api/v1/clients" \
+    -H "Accept: application/json")
+
+if [ "$UNAUTH_STATUS" = "401" ]; then
+    echo "Correctly rejected unauthenticated request (HTTP 401)"
+else
+    echo "ERROR: Expected 401 for unauthenticated request, got ${UNAUTH_STATUS}"
+    exit 1
+fi
+
+echo ""
 echo "Done. API access verified."

@@ -79,7 +79,7 @@ java -jar target/plugin-webhook-receiver-1.0.0-SNAPSHOT.jar \
 | `POLLER_BATCH_SIZE` | `poller.batch-size` | `50` | Max deliveries per poll request |
 | `POLLER_SINCE` | `poller.since` | _(empty)_ | ISO-8601 timestamp for initial poll (e.g. `2026-02-18T00:00:00Z`) |
 | `POLLER_INCLUDE_SIGNATURE` | `poller.include-signature` | `false` | Request HMAC signatures with deliveries |
-| `PLUGIN_SLUG` | `plugin.slug` | _(empty)_ | Plugin slug (poller only) |
+| `PLUGIN_SLUG` | `plugin.slug` | _(empty)_ | Plugin identifier (poller only) |
 | `PLUGIN_INSTANCE_ID` | `plugin.instance-id` | `0` | Plugin instance ID (poller only) |
 
 ### Where to add your business logic

@@ -14,6 +14,8 @@ SCRIPTS=(
     "curl/portfolio-setup.sh"
     "curl/webhook-delivery.sh"
     "curl/bulk-ingestion.sh"
+    "curl/advisory-agreement.sh"
+    "curl/start-advise.sh"
 )
 
 FAILED=0

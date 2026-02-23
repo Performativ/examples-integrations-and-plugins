@@ -57,7 +57,7 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
     @Test
     @Order(1)
     void createPerson() throws ApiException {
-        var req = new AppHttpRequestsApiV1StorePersonRequest()
+        var req = new StorePersonRequest()
                 .firstName("Gen")
                 .lastName("S3-PortfolioSetup")
                 .email("gen-s3@example.com")
@@ -74,7 +74,7 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
     @Test
     @Order(2)
     void createClient() throws ApiException {
-        var req = new AppHttpRequestsApiV1StoreClientRequest()
+        var req = new StoreClientRequest()
                 .name("Gen-S3 Client")
                 .type("individual")
                 .isActive(true)
@@ -96,7 +96,7 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
         assertTrue(personId > 0, "Person must be created first");
         assertTrue(clientId > 0, "Client must be created first");
 
-        var req = new AppHttpRequestsApiV1StoreClientPersonRequest()
+        var req = new StoreClientPersonRequest()
                 .clientId(clientId)
                 .personId(personId)
                 .isPrimary(true);
@@ -109,7 +109,7 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
     void createPortfolio() throws ApiException {
         assertTrue(clientId > 0, "Client must be created first");
 
-        var req = new AppHttpRequestsApiV1StorePortfolioRequest()
+        var req = new StorePortfolioRequest()
                 .name("Gen-S3 Portfolio")
                 .clientId(clientId)
                 .currencyId(47);
@@ -131,7 +131,7 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
     void readPortfolio() throws ApiException {
         assertTrue(portfolioId > 0, "Portfolio must be created first");
 
-        var response = portfolioApi.portfoliosShow(String.valueOf(portfolioId), null);
+        var response = portfolioApi.portfoliosShow(String.valueOf(portfolioId), String.valueOf(portfolioId), null);
         assertNotNull(response);
 
         var data = response.getData();
@@ -151,10 +151,10 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
                 .name("Gen-S3 Portfolio Updated")
                 .currencyId(47);
 
-        var response = portfolioApi.portfoliosUpdate(String.valueOf(portfolioId), req);
+        var response = portfolioApi.portfoliosUpdate(String.valueOf(portfolioId), String.valueOf(portfolioId), req);
         assertNotNull(response, "Portfolio update response should not be null");
 
-        var readBack = portfolioApi.portfoliosShow(String.valueOf(portfolioId), null);
+        var readBack = portfolioApi.portfoliosShow(String.valueOf(portfolioId), String.valueOf(portfolioId), null);
         assertEquals("Gen-S3 Portfolio Updated", readBack.getData().getName(),
                 "Updated name should persist — verifies show response model after update");
     }
@@ -165,7 +165,7 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
     @Order(7)
     void deletePortfolio() throws ApiException {
         assertTrue(portfolioId > 0, "Portfolio must be created first");
-        portfolioApi.portfoliosDestroy(String.valueOf(portfolioId));
+        portfolioApi.portfoliosDestroy(String.valueOf(portfolioId), String.valueOf(portfolioId));
         portfolioId = 0;
     }
 
@@ -173,7 +173,7 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
     @Order(8)
     void deleteClient() throws ApiException {
         assertTrue(clientId > 0, "Client must be created first");
-        clientApi.clientsDestroy(String.valueOf(clientId));
+        clientApi.clientsDestroy(String.valueOf(clientId), String.valueOf(clientId));
         clientId = 0;
     }
 
@@ -182,7 +182,7 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
     void deletePerson() throws ApiException {
         assertTrue(personId > 0, "Person must be created first");
         try {
-            personApi.personsDestroy(String.valueOf(personId));
+            personApi.personsDestroy(String.valueOf(personId), String.valueOf(personId));
         } catch (ApiException e) {
             // Person may already be cascade-deleted with the client
             if (e.getCode() != 404) throw e;

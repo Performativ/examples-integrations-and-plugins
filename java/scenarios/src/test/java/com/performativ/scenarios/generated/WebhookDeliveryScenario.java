@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.performativ.client.api.PersonApi;
 import com.performativ.client.core.ApiClient;
 import com.performativ.client.core.ApiException;
-import com.performativ.client.model.AppHttpRequestsApiV1StorePersonRequest;
+import com.performativ.client.model.StorePersonRequest;
 import org.junit.jupiter.api.*;
 
 import java.net.http.HttpResponse;
@@ -46,7 +46,7 @@ class WebhookDeliveryScenario extends GeneratedClientScenario {
     @Test
     @Order(1)
     void createPerson() throws ApiException {
-        var req = new AppHttpRequestsApiV1StorePersonRequest()
+        var req = new StorePersonRequest()
                 .firstName("Gen")
                 .lastName("S4-WebhookDelivery")
                 .email("gen-s4@example.com")
@@ -115,7 +115,7 @@ class WebhookDeliveryScenario extends GeneratedClientScenario {
     @Order(4)
     void deletePerson() throws ApiException {
         assertTrue(personId > 0, "Person must be created first");
-        personApi.personsDestroy(String.valueOf(personId));
+        personApi.personsDestroy(String.valueOf(personId), String.valueOf(personId));
         personId = 0;
     }
 

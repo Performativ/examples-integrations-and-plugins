@@ -29,6 +29,8 @@ scenario_file() {
         s3) echo "portfolio-setup" ;;
         s4) echo "webhook-delivery" ;;
         s5) echo "bulk-ingestion" ;;
+        s6) echo "advisory-agreement" ;;
+        s7) echo "start-advise" ;;
         *)  echo "" ;;
     esac
 }
@@ -42,6 +44,8 @@ scenario_class() {
         s3) echo "PortfolioSetupScenario" ;;
         s4) echo "WebhookDeliveryScenario" ;;
         s5) echo "BulkIngestionScenario" ;;
+        s6) echo "AdvisoryAgreementScenario" ;;
+        s7) echo "StartAdviseScenario" ;;
         *)  echo "" ;;
     esac
 }

@@ -53,7 +53,7 @@ import java.util.Map;
  * POLLER_BATCH_SIZE=50             # optional, default 50
  * POLLER_SINCE=2026-02-18T00:00:00Z  # optional, only used on first poll
  * POLLER_INCLUDE_SIGNATURE=false   # optional, replay as full POST to local /webhook
- * PLUGIN_SLUG=my-plugin
+ * PLUGIN_SLUG=my-plugin-id
  * PLUGIN_INSTANCE_ID=42
  * </pre>
  *

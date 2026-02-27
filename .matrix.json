@@ -1,9 +1,9 @@
 {
-  "scenarios": ["s1", "s2", "s3", "s4", "s5", "s6", "s7"],
+  "scenarios": ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"],
   "clients": {
-    "curl": { "scenarios": ["s1", "s2", "s3", "s4", "s5", "s6", "s7"], "setup": "bash" },
-    "java-manual": { "scenarios": ["s1", "s2", "s3", "s4", "s5", "s6", "s7"], "setup": "java" },
-    "java-generated": { "scenarios": ["s1", "s2", "s3", "s4", "s5", "s6", "s7"], "setup": "java" }
+    "curl": { "scenarios": ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"], "setup": "bash" },
+    "java-manual": { "scenarios": ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"], "setup": "java" },
+    "java-generated": { "scenarios": ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"], "setup": "java" }
   },
   "auth_methods": {
     "client_secret": {

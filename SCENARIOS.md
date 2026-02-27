@@ -1,6 +1,6 @@
 # Scenarios
 
-Seven core scenarios exercise the Performativ API v1 endpoints at increasing complexity. Each scenario is implemented in three ways — [curl](curl/), [java/manual](java/scenarios/) (raw HTTP), and [java/generated](java/scenarios/) (OpenAPI-generated typed client) — so the same operations are verified across approaches.
+Eight core scenarios exercise the Performativ API v1 endpoints at increasing complexity. Each scenario is implemented in three ways — [curl](curl/), [java/manual](java/scenarios/) (raw HTTP), and [java/generated](java/scenarios/) (OpenAPI-generated typed client) — so the same operations are verified across approaches.
 
 Every scenario acquires an OAuth2 token via `client_credentials` before calling the API.
 
@@ -148,6 +148,50 @@ Advisory agreement prerequisite: a signed agreement is required before creating 
 Advice session state machine: `created` → `data_ready` (plugin signals external data is loaded) → `active` (session activated with redirect URL for the advisor UI) → `ready_to_sign` (advice proposal is ready) → `signed` (client has signed). A session can be `abandoned` from any pre-signed state.
 
 Cleanup: Portfolio can be deleted normally. Client and Person remain after the scenario completes — once an advice context references these entities, they cannot be deleted via the API (FK constraint). Best-effort cleanup is attempted in `@AfterAll` / `trap EXIT`.
+
+## S8: Error Responses
+
+Verify that the API returns [RFC 7807 Problem Details](https://datatracker.ietf.org/doc/html/rfc7807) (`application/problem+json`) for error responses. Exercises validation errors and not-found errors without creating any entities.
+
+| Step | Method | Path | Expected |
+|------|--------|------|----------|
+| Create Client (invalid) | POST | `/api/v1/clients` | 422, RFC 7807 with `type`, `title`, `status`, `detail`, `errors` |
+| Read Client (non-existent) | GET | `/api/v1/clients/0` | 404, RFC 7807 with `type`, `title`, `status`, `detail` |
+
+No entities are created or deleted — no cleanup needed.
+
+### Error response format
+
+The API uses RFC 7807 Problem Details for all error responses. Required fields: `type`, `title`, `status`, `detail`. Validation errors (422) include an `errors` object with field-level messages.
+
+**Validation error (422)**:
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc2616#section-10",
+  "title": "Unprocessable Entity",
+  "status": 422,
+  "detail": "The given data was invalid.",
+  "errors": {
+    "name": ["The name field is required."],
+    "type": ["The type field is required."],
+    "currency_id": ["The currency id field is required."]
+  }
+}
+```
+
+**Not found (404)**:
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc2616#section-10",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "The requested resource was not found."
+}
+```
+
+Optional fields that may appear: `request_id`, `code`, `meta`.
 
 ## Test data conventions
 

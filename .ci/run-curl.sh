@@ -16,6 +16,7 @@ SCRIPTS=(
     "curl/bulk-ingestion.sh"
     "curl/advisory-agreement.sh"
     "curl/start-advise.sh"
+    "curl/error-responses.sh"
 )
 
 FAILED=0

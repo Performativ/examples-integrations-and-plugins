@@ -31,6 +31,7 @@ scenario_file() {
         s5) echo "bulk-ingestion" ;;
         s6) echo "advisory-agreement" ;;
         s7) echo "start-advise" ;;
+        s8) echo "error-responses" ;;
         *)  echo "" ;;
     esac
 }
@@ -46,6 +47,7 @@ scenario_class() {
         s5) echo "BulkIngestionScenario" ;;
         s6) echo "AdvisoryAgreementScenario" ;;
         s7) echo "StartAdviseScenario" ;;
+        s8) echo "ErrorResponsesScenario" ;;
         *)  echo "" ;;
     esac
 }

@@ -82,7 +82,7 @@ No entities are created or deleted. The batch is not started (no CSV uploaded).
 
 ## S6: Advisory Agreement
 
-Full advisory agreement signing journey: upload a document, prepare a signing envelope, create an advice context with the client as member, create an advisory agreement linked to the envelope, walk it through the signing state machine (`draft` → `pending_signature` → `signed`), then close and clean up.
+Full advisory agreement signing journey told from the perspective of a **signing-provider plugin**. The plugin reacts to webhook events, discovers signers via the client query API, manages signing progress with per-signer detail, and walks the agreement through the state machine (`draft` → `pending_signature` → `signed`).
 
 | Step | Method | Path | Expected |
 |------|--------|------|----------|
@@ -90,26 +90,38 @@ Full advisory agreement signing journey: upload a document, prepare a signing en
 | Create Person | POST | `/api/v1/persons` | 201, `data.id` > 0 |
 | Create Client | POST | `/api/v1/clients` | 201, `data.id` > 0 |
 | Link Person to Client | POST | `/api/v1/client-persons` | 201, links person as primary |
-| Upload document | POST | `/api/v1/documents` | 201, `data.id` > 0 (multipart file upload) |
+| Create Advice Context | POST | `/api/v1/advice-contexts` | 201, status `active` _(webhook: AdviceContext.Created)_ |
+| Query advice context clients | GET | `/api/v1/advice-contexts/{id}/clients` | 200, `data` array with person/client IDs |
+| Upload source document | POST | `/api/v1/documents` | 201, `data.id` > 0 (multipart file upload) |
 | Create signing envelope | POST | `/api/v1/signing-envelopes` | 201, status `draft` |
 | Add document to envelope | POST | `/api/v1/signing-envelopes/{id}/documents` | 201, role `source` |
-| Add signer party | POST | `/api/v1/signing-envelopes/{id}/parties` | 201, role `signer` |
+| Add signer party | POST | `/api/v1/signing-envelopes/{id}/parties` | 201, role `signer` (person from client query) |
 | Send envelope | POST | `/api/v1/signing-envelopes/{id}/send` | 200, status becomes `sent` |
-| Create Advice Context | POST | `/api/v1/advice-contexts` | 201, `data.id` > 0, status `active` |
 | Create Advisory Agreement | POST | `/api/v1/advice-contexts/{contextId}/agreements` | 201, status `draft`, linked via `signing_envelope_id` |
-| Read Advisory Agreement | GET | `/api/v1/advisory-agreements/{id}` | 200, matches created |
-| Submit signing | POST | `/api/v1/advisory-agreements/{id}/submit-signing` | 200, status becomes `pending_signature` |
-| Mark Agreement Signed | POST | `/api/v1/advisory-agreements/{id}/mark-signed` | 200, status becomes `signed` |
-| Read Agreement (signed) | GET | `/api/v1/advisory-agreements/{id}` | 200, status `signed` |
+| Read Advisory Agreement | GET | `/api/v1/advice-agreements/{id}` | 200, status `draft` |
+| Submit signing | POST | `/api/v1/advice-agreements/{id}/submit-signing` | 200, status becomes `pending_signature` |
+| Report signing progress (initial) | POST | `/api/v1/advice-agreements/{id}/report-signing-progress` | 200, substatus set, 0/1 signed |
+| Upload signed document | POST | `/api/v1/documents` | 201, `data.id` > 0 (multipart file upload) |
+| Add signed document to envelope | POST | `/api/v1/signing-envelopes/{id}/documents` | 201, role `signed` |
+| Mark signer party signed | POST | `/api/v1/signing-envelopes/{id}/parties/{partyId}/mark-signed` | 200, auto-completes envelope |
+| Report signing progress (complete) | POST | `/api/v1/advice-agreements/{id}/report-signing-progress` | 200, substatus set, 1/1 signed |
+| Mark agreement signed | POST | `/api/v1/advice-agreements/{id}/mark-signed` | 200, status becomes `signed` |
+| Read agreement (final) | GET | `/api/v1/advice-agreements/{id}` | 200, status `signed` |
 | Close Advice Context | POST | `/api/v1/advice-contexts/{id}/close` | 200 |
 
-Agreement state machine: `draft` → `pending_signature` (via `submit-signing` with `document_id`) → `signed` (via `mark-signed` with `signed_document_id`).
+Plugin perspective: the advice context is created **before** the signing envelope so the plugin can query `/advice-contexts/{id}/clients` to discover who needs to sign. In production, the plugin would receive an `AdviceContext.Created` webhook and use the client list to populate signer parties dynamically.
 
-Cleanup: Client and Person remain after the scenario completes. Once an advice context references these entities, they cannot be deleted via the API (FK constraint). Best-effort cleanup is attempted in `@AfterAll` / `trap EXIT`.
+Signing progress: the `report-signing-progress` endpoint lets the plugin post per-signer status (name, email, signed/pending) and a human-readable `substatus` (e.g., "Waiting for signers"). This surfaces in the advisor UI without changing the agreement's state-machine status.
 
-Signing envelope: the envelope groups documents and signer parties. Documents are uploaded via multipart POST to `/api/v1/documents`, then added to the envelope with role `source`. Parties reference a person with role `signer`. The envelope must be sent before the agreement can transition.
+Ordering: the signed document must be added to the envelope **before** marking the signer party as signed. Marking the last party auto-completes the envelope, which locks it — no documents can be added after that.
 
-Entity relationships: Advice Context requires an `advice_policy_id` (looked up from the tenant's configured policies) and a `type` (`individual`). Members are added inline via the `members` array. Advisory Agreement belongs to an Advice Context and is linked to a Signing Envelope via `signing_envelope_id`.
+Agreement state machine: `draft` → `pending_signature` (via `submit-signing`) → `signed` (via `mark-signed` with `signed_document_id`).
+
+Cleanup: Client and Person are **not** deleted. Once an advice context references these entities, they cannot be removed via the API (FK constraint, backend #6183). Prefixed test-data names (`Curl-S6`, `Manual-S6`, `Gen-S6`) make orphans identifiable.
+
+Signing envelope: the envelope groups documents and signer parties. Source documents are uploaded via multipart POST to `/api/v1/documents`, then added to the envelope with role `source`. Signed documents are added with role `signed`. Parties reference a person with role `signer`. The envelope must be sent before the agreement can transition.
+
+Entity relationships: Advice Context requires an `advice_policy_id` (looked up from the tenant's configured policies) and a `type` (`individual`). Clients are added inline via the `clients` array. Advisory Agreement belongs to an Advice Context and is linked to a Signing Envelope via `signing_envelope_id`.
 
 ## S7: Start Advise
 
@@ -131,14 +143,14 @@ A signed advisory agreement is **required** before a session can be created. Thi
 | Send envelope | POST | `/api/v1/signing-envelopes/{id}/send` | 200, status becomes `sent` |
 | Create Advice Context | POST | `/api/v1/advice-contexts` | 201, status `active` |
 | Create Advisory Agreement | POST | `/api/v1/advice-contexts/{contextId}/agreements` | 201, status `draft`, linked via `signing_envelope_id` |
-| Submit signing | POST | `/api/v1/advisory-agreements/{id}/submit-signing` | 200, status becomes `pending_signature` |
-| Mark Agreement Signed | POST | `/api/v1/advisory-agreements/{id}/mark-signed` | 200, status becomes `signed` |
+| Submit signing | POST | `/api/v1/advice-agreements/{id}/submit-signing` | 200, status becomes `pending_signature` |
+| Mark Agreement Signed | POST | `/api/v1/advice-agreements/{id}/mark-signed` | 200, status becomes `signed` |
 | Create Advice Session | POST | `/api/v1/advice-contexts/{contextId}/sessions` | 201, status `created` |
 | Read Advice Session | GET | `/api/v1/advice-sessions/{id}` | 200, status `created` |
-| Mark Data Ready | POST | `/api/v1/advice-sessions/{id}/data-ready` | 200, status becomes `data_ready` |
+| Mark Data Ready | POST | `/api/v1/advice-sessions/{id}/mark-data-ready` | 200, status becomes `data_ready` |
 | Activate Session | POST | `/api/v1/advice-sessions/{id}/activate` | 200, status becomes `active`, `redirect_url` present |
-| Mark Ready to Sign | POST | `/api/v1/advice-sessions/{id}/ready-to-sign` | 200, status becomes `ready_to_sign` |
-| Mark Session Signed | POST | `/api/v1/advice-sessions/{id}/signed` | 200, status becomes `signed` |
+| Mark Ready to Sign | POST | `/api/v1/advice-sessions/{id}/mark-ready-to-sign` | 200, status becomes `ready_to_sign` |
+| Mark Session Signed | POST | `/api/v1/advice-sessions/{id}/mark-signed` | 200, status becomes `signed` |
 | Read Session (final) | GET | `/api/v1/advice-sessions/{id}` | 200, status `signed` |
 | Close Advice Context | POST | `/api/v1/advice-contexts/{id}/close` | 200 |
 | Delete Portfolio | DELETE | `/api/v1/portfolios/{id}` | 200 or 204 |

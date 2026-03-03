@@ -30,7 +30,7 @@ class BulkIngestionScenario extends BaseScenario {
     }
 
     @Test
-    @Order(1)
+    @Order(SETUP + 1)
     void createBatch() throws Exception {
         HttpResponse<String> response = apiPost(token, "/api/v1/bulk/async/batches",
                 """
@@ -47,7 +47,7 @@ class BulkIngestionScenario extends BaseScenario {
     }
 
     @Test
-    @Order(2)
+    @Order(VERIFY + 1)
     void getPresignedUrl() throws Exception {
         assertNotNull(batchId, "Batch must be created first");
 

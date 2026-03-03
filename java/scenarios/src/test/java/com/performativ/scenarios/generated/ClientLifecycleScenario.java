@@ -49,7 +49,7 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(1)
+    @Order(SETUP + 1)
     void createPerson() throws ApiException {
         var req = new StorePersonRequest()
                 .firstName("Gen")
@@ -57,35 +57,37 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
                 .email("gen-s2@example.com")
                 .languageCode("en");
 
-        var response = personApi.personsStore(req);
+        var response = personApi.personsStore(req, idempotencyKey());
         assertNotNull(response, "Person store response should not be null");
         assertNotNull(response.getData(), "Person data should not be null");
 
         personId = response.getData().getId();
         assertTrue(personId > 0, "Person ID should be positive");
+        registerCleanup(token, "/api/v1/persons/" + personId);
     }
 
     @Test
-    @Order(2)
+    @Order(SETUP + 2)
     void createClient() throws ApiException {
         var req = new StoreClientRequest()
                 .name("Gen-S2 Client")
-                .type("individual")
+                .type(StoreClientRequest.TypeEnum.INDIVIDUAL)
                 .isActive(true)
                 .currencyId(47);
 
-        var response = clientApi.clientsStore(req);
+        var response = clientApi.clientsStore(req, idempotencyKey());
         assertNotNull(response, "Client store response should not be null");
         assertNotNull(response.getData(), "Client data should not be null");
 
         clientId = response.getData().getId();
         assertTrue(clientId > 0, "Client ID should be positive");
+        registerCleanup(token, "/api/v1/clients/" + clientId);
         assertEquals("Gen-S2 Client", response.getData().getName(),
                 "Created client name should match request — verifies typed model round-trip");
     }
 
     @Test
-    @Order(3)
+    @Order(SETUP + 3)
     void linkPersonToClient() throws ApiException {
         assertTrue(personId > 0, "Person must be created first");
         assertTrue(clientId > 0, "Client must be created first");
@@ -95,15 +97,15 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
                 .personId(personId)
                 .isPrimary(true);
 
-        clientPersonApi.clientPersonsStore(req);
+        clientPersonApi.clientPersonsStore(req, idempotencyKey());
     }
 
     @Test
-    @Order(4)
+    @Order(VERIFY + 1)
     void readClient() throws ApiException {
         assertTrue(clientId > 0, "Client must be created first");
 
-        var response = clientApi.clientsShow(String.valueOf(clientId), String.valueOf(clientId), null);
+        var response = clientApi.clientsShow(String.valueOf(clientId), null);
         assertNotNull(response);
 
         var data = response.getData();
@@ -113,29 +115,29 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(5)
+    @Order(VERIFY + 2)
     void updateClient() throws ApiException {
         assertTrue(clientId > 0, "Client must be created first");
 
         var req = new UpdateClientRequest()
                 .name("Gen-S2 Client Updated")
-                .type("individual")
+                .type(UpdateClientRequest.TypeEnum.INDIVIDUAL)
                 .currencyId(47);
 
-        var response = clientApi.clientsUpdate(String.valueOf(clientId), String.valueOf(clientId), req);
+        var response = clientApi.clientsUpdate(String.valueOf(clientId), req);
         assertNotNull(response, "Client update response should not be null");
 
-        var readBack = clientApi.clientsShow(String.valueOf(clientId), String.valueOf(clientId), null);
+        var readBack = clientApi.clientsShow(String.valueOf(clientId), null);
         assertEquals("Gen-S2 Client Updated", readBack.getData().getName(),
                 "Updated name should persist — verifies update response model");
     }
 
     @Test
-    @Order(6)
+    @Order(VERIFY + 3)
     void readPerson() throws ApiException {
         assertTrue(personId > 0, "Person must be created first");
 
-        var response = personApi.personsShow(String.valueOf(personId), String.valueOf(personId), null);
+        var response = personApi.personsShow(String.valueOf(personId), null);
         assertNotNull(response);
 
         var data = response.getData();
@@ -147,19 +149,19 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(7)
+    @Order(TEARDOWN + 1)
     void deleteClient() throws ApiException {
         assertTrue(clientId > 0, "Client must be created first");
-        clientApi.clientsDestroy(String.valueOf(clientId), String.valueOf(clientId));
+        clientApi.clientsDestroy(String.valueOf(clientId));
         clientId = 0;
     }
 
     @Test
-    @Order(8)
+    @Order(TEARDOWN + 2)
     void deletePerson() throws ApiException {
         assertTrue(personId > 0, "Person must be created first");
         try {
-            personApi.personsDestroy(String.valueOf(personId), String.valueOf(personId));
+            personApi.personsDestroy(String.valueOf(personId));
         } catch (ApiException e) {
             // Person may already be cascade-deleted with the client
             if (e.getCode() != 404) throw e;
@@ -169,9 +171,6 @@ class ClientLifecycleScenario extends GeneratedClientScenario {
 
     @AfterAll
     static void teardown() {
-        if (token == null) return;
-        // Cleanup uses raw HTTP — never fails due to spec bugs
-        if (clientId > 0) deleteEntity(token, "/api/v1/clients/" + clientId);
-        if (personId > 0) deleteEntity(token, "/api/v1/persons/" + personId);
+        runCleanup();
     }
 }

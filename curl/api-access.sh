@@ -12,31 +12,26 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/../.ci/lib/auth.sh"
+source "${SCRIPT_DIR}/../.ci/lib/helpers.sh"
 
 load_env "$SCRIPT_DIR"
 acquire_token
 
-echo ""
-echo "=== List clients ==="
+step "List clients"
 CLIENTS=$(curl -s "${API}/api/v1/clients" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Accept: application/json")
 
 COUNT=$(echo "$CLIENTS" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('data',[])))")
 echo "Got ${COUNT} clients"
-echo "$CLIENTS" | python3 -m json.tool | head -20
+echo "$CLIENTS" | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin),indent=4)[:800])"
 
-echo ""
-echo "=== Verify unauthenticated access is rejected ==="
+step "Verify unauthenticated access is rejected"
 UNAUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API}/api/v1/clients" \
     -H "Accept: application/json")
 
-if [ "$UNAUTH_STATUS" = "401" ]; then
-    echo "Correctly rejected unauthenticated request (HTTP 401)"
-else
-    echo "ERROR: Expected 401 for unauthenticated request, got ${UNAUTH_STATUS}"
-    exit 1
-fi
+assert_status "$UNAUTH_STATUS" "401" "Unauthenticated request should be rejected"
+echo "Correctly rejected unauthenticated request (HTTP 401)"
 
 echo ""
 echo "Done. API access verified."

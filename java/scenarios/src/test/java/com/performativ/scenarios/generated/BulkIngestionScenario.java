@@ -36,7 +36,7 @@ class BulkIngestionScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(1)
+    @Order(SETUP + 1)
     void createBatch() throws ApiException {
         var req = new CreateBatchRequest()
                 .uploadMode(CreateBatchRequest.UploadModeEnum.PRESIGNED);
@@ -51,7 +51,7 @@ class BulkIngestionScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(2)
+    @Order(VERIFY + 1)
     void getPresignedUrl() throws ApiException {
         assertNotNull(batchId, "Batch must be created first");
 

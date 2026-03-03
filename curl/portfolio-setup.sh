@@ -67,16 +67,17 @@ CLIENT_ID=$(echo "$CLIENT" | python3 -c "import sys,json; print(json.load(sys.st
 echo "Created Client ID: ${CLIENT_ID}"
 
 echo ""
-echo "=== 3b. Link Person to Client ==="
-curl -s -X POST "${API}/api/v1/client-persons" \
+echo "=== 4. Link Person to Client ==="
+LINK_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1/client-persons" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
-    -d "{\"client_id\":${CLIENT_ID},\"person_id\":${PERSON_ID},\"is_primary\":true}" \
-    -o /dev/null -w "HTTP %{http_code}\n"
+    -d "{\"client_id\":${CLIENT_ID},\"person_id\":${PERSON_ID},\"is_primary\":true}")
+echo "HTTP ${LINK_STATUS}"
+if [ "$LINK_STATUS" != "201" ]; then echo "ERROR: Expected 201, got ${LINK_STATUS}"; exit 1; fi
 
 echo ""
-echo "=== 4. Create Portfolio ==="
+echo "=== 5. Create Portfolio ==="
 PORTFOLIO=$(curl -s -X POST "${API}/api/v1/portfolios" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
@@ -87,13 +88,13 @@ PORTFOLIO_ID=$(echo "$PORTFOLIO" | python3 -c "import sys,json; print(json.load(
 echo "Created Portfolio ID: ${PORTFOLIO_ID}"
 
 echo ""
-echo "=== 5. Read back Portfolio ==="
+echo "=== 6. Read back Portfolio ==="
 curl -s "${API}/api/v1/portfolios/${PORTFOLIO_ID}" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Accept: application/json" | python3 -m json.tool | head -20
 
 echo ""
-echo "=== 6. Update Portfolio ==="
+echo "=== 7. Update Portfolio ==="
 curl -s -X PUT "${API}/api/v1/portfolios/${PORTFOLIO_ID}" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
@@ -101,5 +102,5 @@ curl -s -X PUT "${API}/api/v1/portfolios/${PORTFOLIO_ID}" \
     -d '{"name":"Curl-S3 Portfolio Updated","currency_id":47}' -o /dev/null -w "HTTP %{http_code}\n"
 
 echo ""
-echo "=== 7-9. Delete (handled by cleanup trap) ==="
+echo "=== 8-10. Delete (handled by cleanup trap) ==="
 echo "Done. All entities created, read, updated, and will be cleaned up."

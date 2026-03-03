@@ -15,12 +15,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/../.ci/lib/auth.sh"
+source "${SCRIPT_DIR}/../.ci/lib/helpers.sh"
 
 load_env "$SCRIPT_DIR"
 acquire_token
 
-echo ""
-echo "=== 1. Create Client with invalid payload (expect 422) ==="
+step "Create Client with invalid payload (expect 422)"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${API}/api/v1/clients" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
@@ -31,12 +31,7 @@ HTTP_CODE=$(echo "$RESPONSE" | tail -1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 
 echo "HTTP ${HTTP_CODE}"
-
-if [ "$HTTP_CODE" != "422" ]; then
-    echo "ERROR: Expected 422 for empty client payload, got ${HTTP_CODE}"
-    echo "$BODY"
-    exit 1
-fi
+assert_status "$HTTP_CODE" "422" "Empty client payload"
 
 python3 -c "
 import json, sys
@@ -52,8 +47,7 @@ for field, messages in body['errors'].items():
     print(f'  {field}: {messages}')
 " "$BODY"
 
-echo ""
-echo "=== 2. Read non-existent Client (expect 404) ==="
+step "Read non-existent Client (expect 404)"
 RESPONSE=$(curl -s -w "\n%{http_code}" "${API}/api/v1/clients/0" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Accept: application/json")
@@ -62,12 +56,7 @@ HTTP_CODE=$(echo "$RESPONSE" | tail -1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 
 echo "HTTP ${HTTP_CODE}"
-
-if [ "$HTTP_CODE" != "404" ]; then
-    echo "ERROR: Expected 404 for non-existent client, got ${HTTP_CODE}"
-    echo "$BODY"
-    exit 1
-fi
+assert_status "$HTTP_CODE" "404" "Non-existent client"
 
 python3 -c "
 import json, sys

@@ -13,7 +13,10 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -29,9 +32,36 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  */
 public abstract class BaseScenario {
 
+    // ── @Order phase constants ──────────────────────────────────────────
+    // Spaced by 100 so each phase can hold up to 99 steps.
+    protected static final int SETUP     = 100;
+    protected static final int ENVELOPE  = 200;
+    protected static final int AGREEMENT = 300;
+    protected static final int SESSION   = 400;
+    protected static final int VERIFY    = 500;
+    protected static final int TEARDOWN  = 900;
+
+    // ── Ordered cleanup queue ───────────────────────────────────────────
+    private record CleanupEntry(String token, String path) {}
+    private static final List<CleanupEntry> cleanupQueue = Collections.synchronizedList(new ArrayList<>());
+
+    /** Register an entity for best-effort DELETE during teardown. Entries are deleted in reverse order. */
+    protected static void registerCleanup(String token, String path) {
+        cleanupQueue.add(new CleanupEntry(token, path));
+    }
+
+    /** Execute all registered cleanups in reverse order (LIFO). Call from {@code @AfterAll}. */
+    protected static void runCleanup() {
+        var reversed = new ArrayList<>(cleanupQueue);
+        Collections.reverse(reversed);
+        for (var entry : reversed) {
+            deleteEntity(entry.token(), entry.path());
+        }
+        cleanupQueue.clear();
+    }
+
     protected static final Dotenv dotenv = Dotenv.configure()
             .directory("../../")
-            .ignoreIfMissing()
             .load();
 
     protected static final ObjectMapper objectMapper = new ObjectMapper();
@@ -108,6 +138,7 @@ public abstract class BaseScenario {
 
     /**
      * Perform an authenticated POST request with a JSON body.
+     * Includes an {@code Idempotency-Key} header (UUID) for v1 POST mutations.
      */
     protected static HttpResponse<String> apiPost(String token, String path, String jsonBody)
             throws IOException, InterruptedException {
@@ -116,6 +147,7 @@ public abstract class BaseScenario {
                 .header("Authorization", "Bearer " + token)
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
+                .header("Idempotency-Key", UUID.randomUUID().toString())
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .timeout(Duration.ofSeconds(30))
                 .build();
@@ -159,6 +191,11 @@ public abstract class BaseScenario {
     /**
      * Perform an authenticated multipart POST request. Uploads a file along with
      * additional form fields. Used for document upload endpoints.
+     *
+     * <p><b>Note:</b> this implementation reads the file as UTF-8 text and builds
+     * the multipart body as a string. It works for text-based test fixtures but
+     * will corrupt binary files (PDFs, images). For binary uploads, use a
+     * byte-array-based multipart builder instead.
      */
     protected static HttpResponse<String> apiPostMultipart(String token, String path,
             Path filePath, String fileFieldName, Map<String, String> fields)
@@ -190,6 +227,7 @@ public abstract class BaseScenario {
                 .header("Authorization", "Bearer " + token)
                 .header("Content-Type", "multipart/form-data; boundary=" + boundary)
                 .header("Accept", "application/json")
+                .header("Idempotency-Key", UUID.randomUUID().toString())
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
                 .timeout(Duration.ofSeconds(30))
                 .build();
@@ -198,14 +236,14 @@ public abstract class BaseScenario {
     }
 
     /**
-     * POST and extract the "data" object from the response. Fails if status is not 2xx.
+     * POST and extract the "data" object from the response. Fails if status is not 201.
      */
     protected static JsonNode createEntity(String token, String path, String jsonBody)
             throws IOException, InterruptedException {
         HttpResponse<String> response = apiPost(token, path, jsonBody);
-        if (response.statusCode() >= 300) {
-            throw new IOException("Create failed at " + path + ": HTTP " + response.statusCode()
-                    + " - " + response.body());
+        if (response.statusCode() != 201) {
+            throw new IOException("Create failed at " + path + ": expected 201, got HTTP "
+                    + response.statusCode() + " - " + response.body());
         }
         return objectMapper.readTree(response.body()).path("data");
     }

@@ -30,7 +30,7 @@ class ClientLifecycleScenario extends BaseScenario {
     }
 
     @Test
-    @Order(1)
+    @Order(SETUP + 1)
     void createPerson() throws Exception {
         JsonNode person = createEntity(token, "/api/v1/persons",
                 """
@@ -39,11 +39,12 @@ class ClientLifecycleScenario extends BaseScenario {
 
         personId = person.get("id").asInt();
         assertTrue(personId > 0, "Person ID should be positive");
+        registerCleanup(token, "/api/v1/persons/" + personId);
         assertEquals("Manual", person.get("first_name").asText());
     }
 
     @Test
-    @Order(2)
+    @Order(SETUP + 2)
     void createClient() throws Exception {
         JsonNode client = createEntity(token, "/api/v1/clients",
                 """
@@ -52,11 +53,12 @@ class ClientLifecycleScenario extends BaseScenario {
 
         clientId = client.get("id").asInt();
         assertTrue(clientId > 0, "Client ID should be positive");
+        registerCleanup(token, "/api/v1/clients/" + clientId);
         assertEquals("Manual-S2 Client", client.get("name").asText());
     }
 
     @Test
-    @Order(3)
+    @Order(SETUP + 3)
     void linkPersonToClient() throws Exception {
         assertTrue(personId > 0, "Person must be created first");
         assertTrue(clientId > 0, "Client must be created first");
@@ -71,7 +73,7 @@ class ClientLifecycleScenario extends BaseScenario {
     }
 
     @Test
-    @Order(4)
+    @Order(VERIFY + 1)
     void readBackClient() throws Exception {
         assertTrue(clientId > 0, "Client must be created first");
 
@@ -84,7 +86,7 @@ class ClientLifecycleScenario extends BaseScenario {
     }
 
     @Test
-    @Order(5)
+    @Order(VERIFY + 2)
     void updateClient() throws Exception {
         assertTrue(clientId > 0, "Client must be created first");
 
@@ -100,7 +102,7 @@ class ClientLifecycleScenario extends BaseScenario {
     }
 
     @Test
-    @Order(6)
+    @Order(VERIFY + 3)
     void readBackPerson() throws Exception {
         assertTrue(personId > 0, "Person must be created first");
 
@@ -114,7 +116,7 @@ class ClientLifecycleScenario extends BaseScenario {
     }
 
     @Test
-    @Order(7)
+    @Order(TEARDOWN + 1)
     void deleteClient() throws Exception {
         assertTrue(clientId > 0, "Client must be created first");
         HttpResponse<String> response = apiDelete(token, "/api/v1/clients/" + clientId);
@@ -124,7 +126,7 @@ class ClientLifecycleScenario extends BaseScenario {
     }
 
     @Test
-    @Order(8)
+    @Order(TEARDOWN + 2)
     void deletePerson() throws Exception {
         assertTrue(personId > 0, "Person must be created first");
         HttpResponse<String> response = apiDelete(token, "/api/v1/persons/" + personId);
@@ -135,8 +137,6 @@ class ClientLifecycleScenario extends BaseScenario {
 
     @AfterAll
     static void teardown() {
-        if (token == null) return;
-        if (clientId > 0) deleteEntity(token, "/api/v1/clients/" + clientId);
-        if (personId > 0) deleteEntity(token, "/api/v1/persons/" + personId);
+        runCleanup();
     }
 }

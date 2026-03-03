@@ -28,7 +28,7 @@ class ErrorResponsesScenario extends BaseScenario {
     }
 
     @Test
-    @Order(1)
+    @Order(VERIFY + 1)
     void createClientValidationError() throws Exception {
         HttpResponse<String> response = apiPost(token, "/api/v1/clients", "{}");
         assertEquals(422, response.statusCode(),
@@ -52,7 +52,7 @@ class ErrorResponsesScenario extends BaseScenario {
     }
 
     @Test
-    @Order(2)
+    @Order(VERIFY + 2)
     void readNonExistentClient() throws Exception {
         HttpResponse<String> response = apiGet(token, "/api/v1/clients/0");
         assertEquals(404, response.statusCode(),

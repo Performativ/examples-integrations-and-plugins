@@ -13,6 +13,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/../.ci/lib/auth.sh"
+source "${SCRIPT_DIR}/../.ci/lib/helpers.sh"
 
 load_env "$SCRIPT_DIR"
 
@@ -38,35 +39,37 @@ trap cleanup EXIT
 
 acquire_token
 
-echo ""
-echo "=== 2. Create Person (to trigger webhook) ==="
+# Record timestamp before creation for ?since= polling parameter
+CREATED_BEFORE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+step "Create Person (to trigger webhook)"
 PERSON=$(curl -s -X POST "${API}/api/v1/persons" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
+    -H "Idempotency-Key: $(uuidgen)" \
     -d '{"first_name":"Curl","last_name":"S4-WebhookDelivery","email":"curl-s4@example.com","language_code":"en"}')
 
-PERSON_ID=$(echo "$PERSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
+PERSON_ID=$(extract_id "$PERSON")
 echo "Created Person ID: ${PERSON_ID}"
 
-echo ""
-echo "=== 3. Wait for delivery processing ==="
+step "Wait for delivery processing"
 sleep 5
 
-echo ""
-echo "=== 4. Poll webhook deliveries ==="
+step "Poll webhook deliveries"
 # This uses the delivery-polling API as a CI-friendly verification approach.
 # In production, your plugin receives webhooks as real-time HTTPS POSTs.
 # See java/webhook-receiver/ for a complete Spring Boot implementation,
 # and docs/webhook-setup.md + docs/testing-webhooks-locally.md for the full push-based flow.
-DELIVERIES=$(curl -s "${API}/api/v1/plugins/${PLUGIN_SLUG}/instances/${PLUGIN_INSTANCE_ID}/webhook-deliveries/poll?limit=50" \
+# Use ?since= to only scan deliveries created after our person (the poll
+# endpoint is a cursor-based forward stream, oldest-first).
+DELIVERIES=$(curl -s "${API}/api/v1/plugins/${PLUGIN_SLUG}/instances/${PLUGIN_INSTANCE_ID}/webhook-deliveries/poll?limit=50&since=${CREATED_BEFORE}" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Accept: application/json")
 
 echo "Poll response (first 500 chars): ${DELIVERIES:0:500}"
 
-echo ""
-echo "=== 5. Find matching delivery ==="
+step "Find matching delivery"
 MATCH=$(echo "$DELIVERIES" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -89,6 +92,5 @@ else
     exit 1
 fi
 
-echo ""
-echo "=== 6. Delete (handled by cleanup trap) ==="
+step "Delete (handled by cleanup trap)"
 echo "Done. Person created, webhook delivery verified, cleanup follows."

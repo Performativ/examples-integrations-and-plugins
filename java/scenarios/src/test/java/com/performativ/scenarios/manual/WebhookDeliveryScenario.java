@@ -27,6 +27,7 @@ class WebhookDeliveryScenario extends BaseScenario {
 
     private static String token;
     private static int personId;
+    private static String createdBefore; // ISO-8601 timestamp recorded before person creation
 
     @BeforeAll
     static void setup() throws Exception {
@@ -36,8 +37,11 @@ class WebhookDeliveryScenario extends BaseScenario {
     }
 
     @Test
-    @Order(1)
+    @Order(SETUP + 1)
     void createPerson() throws Exception {
+        // Record timestamp before creation so we can use ?since= when polling
+        createdBefore = java.time.Instant.now().minusSeconds(1).toString();
+
         JsonNode person = createEntity(token, "/api/v1/persons",
                 """
                 {"first_name":"Manual","last_name":"S4-WebhookDelivery","email":"manual-s4@example.com","language_code":"en"}
@@ -45,24 +49,27 @@ class WebhookDeliveryScenario extends BaseScenario {
 
         personId = person.get("id").asInt();
         assertTrue(personId > 0, "Person ID should be positive");
+        registerCleanup(token, "/api/v1/persons/" + personId);
     }
 
     @Test
-    @Order(2)
+    @Order(SETUP + 2)
     void waitForDeliveryProcessing() throws Exception {
         assertTrue(personId > 0, "Person must be created first");
         Thread.sleep(5_000);
     }
 
     @Test
-    @Order(3)
+    @Order(VERIFY + 1)
     void pollAndVerifyDelivery() throws Exception {
         assertTrue(personId > 0, "Person must be created first");
 
         String pluginSlug = dotenv.get("PLUGIN_SLUG");
         String instanceId = dotenv.get("PLUGIN_INSTANCE_ID");
-        String pollPath = String.format("/api/v1/plugins/%s/instances/%s/webhook-deliveries/poll?limit=50",
-                pluginSlug, instanceId);
+        // Use ?since= to avoid scanning from the beginning of time (the poll
+        // endpoint is a cursor-based forward stream, oldest-first).
+        String pollPath = String.format("/api/v1/plugins/%s/instances/%s/webhook-deliveries/poll?limit=50&since=%s",
+                pluginSlug, instanceId, createdBefore);
 
         HttpResponse<String> response = apiGet(token, pollPath);
         assertEquals(200, response.statusCode(),
@@ -99,7 +106,7 @@ class WebhookDeliveryScenario extends BaseScenario {
     }
 
     @Test
-    @Order(4)
+    @Order(TEARDOWN + 1)
     void deletePerson() throws Exception {
         assertTrue(personId > 0, "Person must be created first");
         HttpResponse<String> response = apiDelete(token, "/api/v1/persons/" + personId);
@@ -110,7 +117,6 @@ class WebhookDeliveryScenario extends BaseScenario {
 
     @AfterAll
     static void teardown() {
-        if (token == null) return;
-        if (personId > 0) deleteEntity(token, "/api/v1/persons/" + personId);
+        runCleanup();
     }
 }

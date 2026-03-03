@@ -35,6 +35,7 @@ class StartAdviseScenario extends BaseScenario {
     private static int envelopeId;
     private static int adviceContextId;
     private static int agreementId;
+    private static int signedDocId;
     private static int sessionId;
 
     @BeforeAll
@@ -46,7 +47,7 @@ class StartAdviseScenario extends BaseScenario {
     // -- Prerequisites --------------------------------------------------------
 
     @Test
-    @Order(1)
+    @Order(SETUP + 1)
     void listAdvicePolicies() throws Exception {
         HttpResponse<String> response = apiGet(token, "/api/v1/advice-policies");
         assertEquals(200, response.statusCode(),
@@ -62,7 +63,7 @@ class StartAdviseScenario extends BaseScenario {
     }
 
     @Test
-    @Order(2)
+    @Order(SETUP + 2)
     void createPerson() throws Exception {
         JsonNode person = createEntity(token, "/api/v1/persons",
                 """
@@ -71,10 +72,11 @@ class StartAdviseScenario extends BaseScenario {
 
         personId = person.get("id").asInt();
         assertTrue(personId > 0, "Person ID should be positive");
+        registerCleanup(token, "/api/v1/persons/" + personId);
     }
 
     @Test
-    @Order(3)
+    @Order(SETUP + 3)
     void createClient() throws Exception {
         JsonNode client = createEntity(token, "/api/v1/clients",
                 """
@@ -83,10 +85,11 @@ class StartAdviseScenario extends BaseScenario {
 
         clientId = client.get("id").asInt();
         assertTrue(clientId > 0, "Client ID should be positive");
+        registerCleanup(token, "/api/v1/clients/" + clientId);
     }
 
     @Test
-    @Order(4)
+    @Order(SETUP + 4)
     void linkPersonToClient() throws Exception {
         assertTrue(personId > 0, "Person must be created first");
         assertTrue(clientId > 0, "Client must be created first");
@@ -101,7 +104,7 @@ class StartAdviseScenario extends BaseScenario {
     }
 
     @Test
-    @Order(5)
+    @Order(SETUP + 5)
     void createPortfolio() throws Exception {
         assertTrue(clientId > 0, "Client must be created first");
 
@@ -112,12 +115,13 @@ class StartAdviseScenario extends BaseScenario {
 
         portfolioId = portfolio.get("id").asInt();
         assertTrue(portfolioId > 0, "Portfolio ID should be positive");
+        registerCleanup(token, "/api/v1/portfolios/" + portfolioId);
     }
 
     // -- Document upload and signing (required for signed agreement) ----------
 
     @Test
-    @Order(6)
+    @Order(ENVELOPE + 1)
     void uploadDocument() throws Exception {
         Path tempFile = Files.createTempFile("manual-s7-agreement-", ".txt");
         Files.writeString(tempFile, "Hello World - Manual S7 Advisory Agreement");
@@ -138,7 +142,7 @@ class StartAdviseScenario extends BaseScenario {
     }
 
     @Test
-    @Order(7)
+    @Order(ENVELOPE + 2)
     void createSigningEnvelope() throws Exception {
         HttpResponse<String> response = apiPost(token, "/api/v1/signing-envelopes",
                 """
@@ -154,7 +158,7 @@ class StartAdviseScenario extends BaseScenario {
     }
 
     @Test
-    @Order(8)
+    @Order(ENVELOPE + 3)
     void addDocumentToEnvelope() throws Exception {
         assertTrue(envelopeId > 0, "Envelope must be created first");
         assertTrue(documentId > 0, "Document must be uploaded first");
@@ -170,7 +174,7 @@ class StartAdviseScenario extends BaseScenario {
     }
 
     @Test
-    @Order(9)
+    @Order(ENVELOPE + 4)
     void addSignerPartyToEnvelope() throws Exception {
         assertTrue(envelopeId > 0, "Envelope must be created first");
         assertTrue(personId > 0, "Person must be created first");
@@ -186,7 +190,7 @@ class StartAdviseScenario extends BaseScenario {
     }
 
     @Test
-    @Order(10)
+    @Order(ENVELOPE + 5)
     void sendEnvelope() throws Exception {
         assertTrue(envelopeId > 0, "Envelope must be created first");
 
@@ -200,15 +204,15 @@ class StartAdviseScenario extends BaseScenario {
     // -- Advice Context -------------------------------------------------------
 
     @Test
-    @Order(11)
+    @Order(AGREEMENT + 1)
     void createAdviceContext() throws Exception {
         assertTrue(advicePolicyId > 0, "Advice policy must be found first");
         assertTrue(personId > 0, "Person must be created first");
 
         HttpResponse<String> response = apiPost(token, "/api/v1/advice-contexts",
                 String.format("""
-                {"advice_policy_id":%d,"type":"individual","name":"Manual-S7 Advice Context","reference_person_id":%d,"members":[{"person_id":%d,"power_of_attorney":false}]}
-                """, advicePolicyId, personId, personId));
+                {"advice_policy_id":%d,"type":"individual","name":"Manual-S7 Advice Context","reference_person_id":%d,"members":[{"person_id":%d,"client_id":%d,"power_of_attorney":false}]}
+                """, advicePolicyId, personId, personId, clientId));
 
         assertTrue(response.statusCode() < 300,
                 "Create advice context should succeed, got: " + response.statusCode() + " " + response.body());
@@ -222,7 +226,7 @@ class StartAdviseScenario extends BaseScenario {
     // -- Advisory Agreement (linked to signing envelope) ---------------------
 
     @Test
-    @Order(12)
+    @Order(AGREEMENT + 2)
     void createAdvisoryAgreement() throws Exception {
         assertTrue(adviceContextId > 0, "Advice context must be created first");
         assertTrue(envelopeId > 0, "Signing envelope must be created first");
@@ -243,45 +247,95 @@ class StartAdviseScenario extends BaseScenario {
     }
 
     @Test
-    @Order(13)
+    @Order(AGREEMENT + 3)
     void submitSigning() throws Exception {
         assertTrue(agreementId > 0, "Agreement must be created first");
         assertTrue(documentId > 0, "Document must be uploaded first");
 
+        // In v1, idempotency moved from body to Idempotency-Key header (handled by apiPost).
+        // submit-signing body no longer includes document_id.
         HttpResponse<String> response = apiPost(token,
-                "/api/v1/advisory-agreements/" + agreementId + "/submit-signing",
-                String.format("""
-                {"idempotency_key":"manual-s7-submit-%d","document_id":%d}
-                """, System.currentTimeMillis(), documentId));
+                "/api/v1/advice-agreements/" + agreementId + "/submit-signing",
+                "{}");
 
         assertTrue(response.statusCode() < 300,
                 "Submit signing should succeed, got: " + response.statusCode() + " " + response.body());
     }
 
     @Test
-    @Order(14)
-    void markAgreementSigned() throws Exception {
-        assertTrue(agreementId > 0, "Agreement must be created first");
+    @Order(AGREEMENT + 4)
+    void uploadSignedDocumentAndAddToEnvelope() throws Exception {
+        assertTrue(envelopeId > 0, "Envelope must be created first");
         assertTrue(documentId > 0, "Document must be uploaded first");
 
+        // Upload a separate signed document
+        var tempFile = java.nio.file.Files.createTempFile("manual-s7-signed-", ".txt");
+        java.nio.file.Files.writeString(tempFile, "Signed Advisory Agreement - Manual S7");
+        try {
+            HttpResponse<String> docResp = apiPostMultipart(token, "/api/v1/documents",
+                    tempFile, "file", Map.of("type", "advisory_agreement"));
+            signedDocId = objectMapper.readTree(docResp.body()).path("data").get("id").asInt();
+            assertTrue(signedDocId > 0, "Signed document ID should be positive");
+        } finally {
+            java.nio.file.Files.deleteIfExists(tempFile);
+        }
+
+        // Add signed document to envelope BEFORE marking the party signed —
+        // marking all parties signed completes the envelope, after which
+        // documents can no longer be added.
         HttpResponse<String> response = apiPost(token,
-                "/api/v1/advisory-agreements/" + agreementId + "/mark-signed",
+                "/api/v1/signing-envelopes/" + envelopeId + "/documents",
                 String.format("""
-                {"idempotency_key":"manual-s7-signed-%d","signed_document_id":%d}
-                """, System.currentTimeMillis(), documentId));
+                {"document_id":%d,"role":"signed"}
+                """, signedDocId));
 
         assertTrue(response.statusCode() < 300,
-                "Mark signed should succeed, got: " + response.statusCode() + " " + response.body());
+                "Add signed document to envelope should succeed, got: "
+                        + response.statusCode() + " " + response.body());
+    }
 
-        JsonNode data = objectMapper.readTree(response.body()).path("data");
-        assertEquals("signed", data.get("status").asText(),
-                "Agreement should now be in signed status");
+    @Test
+    @Order(AGREEMENT + 5)
+    void markSignerPartySigned() throws Exception {
+        assertTrue(envelopeId > 0, "Envelope must be created first");
+
+        HttpResponse<String> envelopeResp = apiGet(token, "/api/v1/signing-envelopes/" + envelopeId);
+        JsonNode parties = objectMapper.readTree(envelopeResp.body()).path("data").path("parties");
+        assertTrue(parties.size() > 0, "Envelope should have at least one party");
+        int partyId = parties.get(0).get("id").asInt();
+
+        HttpResponse<String> response = apiPost(token,
+                "/api/v1/signing-envelopes/" + envelopeId + "/parties/" + partyId + "/mark-signed",
+                String.format("""
+                {"signed_at":"%s"}
+                """, java.time.Instant.now().toString()));
+
+        assertTrue(response.statusCode() < 300,
+                "Mark signer party as signed should succeed, got: "
+                        + response.statusCode() + " " + response.body());
+    }
+
+    @Test
+    @Order(AGREEMENT + 6)
+    void markAgreementSigned() throws Exception {
+        assertTrue(agreementId > 0, "Agreement must be created first");
+        assertTrue(signedDocId > 0, "Signed document must be uploaded first");
+
+        HttpResponse<String> response = apiPost(token,
+                "/api/v1/advice-agreements/" + agreementId + "/mark-signed",
+                String.format("""
+                {"signed_document_id":%d}
+                """, signedDocId));
+
+        assertTrue(response.statusCode() < 300,
+                "Mark agreement signed should succeed, got: "
+                        + response.statusCode() + " " + response.body());
     }
 
     // -- Advice Session lifecycle ---------------------------------------------
 
     @Test
-    @Order(15)
+    @Order(SESSION + 1)
     void createAdviceSession() throws Exception {
         assertTrue(adviceContextId > 0, "Advice context must be created first");
 
@@ -302,7 +356,7 @@ class StartAdviseScenario extends BaseScenario {
     }
 
     @Test
-    @Order(16)
+    @Order(SESSION + 2)
     void readAdviceSession() throws Exception {
         assertTrue(sessionId > 0, "Session must be created first");
 
@@ -315,15 +369,14 @@ class StartAdviseScenario extends BaseScenario {
     }
 
     @Test
-    @Order(17)
+    @Order(SESSION + 3)
     void markDataReady() throws Exception {
         assertTrue(sessionId > 0, "Session must be created first");
 
+        // In v1, idempotency moved from body to Idempotency-Key header (handled by apiPost).
         HttpResponse<String> response = apiPost(token,
-                "/api/v1/advice-sessions/" + sessionId + "/data-ready",
-                String.format("""
-                {"idempotency_key":"manual-s7-data-ready-%d"}
-                """, System.currentTimeMillis()));
+                "/api/v1/advice-sessions/" + sessionId + "/mark-data-ready",
+                "{}");
 
         assertTrue(response.statusCode() < 300,
                 "Mark data ready should succeed, got: " + response.statusCode() + " " + response.body());
@@ -334,15 +387,16 @@ class StartAdviseScenario extends BaseScenario {
     }
 
     @Test
-    @Order(18)
+    @Order(SESSION + 4)
     void activateSession() throws Exception {
         assertTrue(sessionId > 0, "Session must be created first");
 
+        // In v1, idempotency moved from body to Idempotency-Key header (handled by apiPost).
         HttpResponse<String> response = apiPost(token,
                 "/api/v1/advice-sessions/" + sessionId + "/activate",
-                String.format("""
-                {"idempotency_key":"manual-s7-activate-%d","redirect_url":"https://example.com/advisor-ui/session"}
-                """, System.currentTimeMillis()));
+                """
+                {"redirect_url":"https://example.com/advisor-ui/session"}
+                """);
 
         assertTrue(response.statusCode() < 300,
                 "Activate session should succeed, got: " + response.statusCode() + " " + response.body());
@@ -353,15 +407,14 @@ class StartAdviseScenario extends BaseScenario {
     }
 
     @Test
-    @Order(19)
+    @Order(SESSION + 5)
     void markReadyToSign() throws Exception {
         assertTrue(sessionId > 0, "Session must be created first");
 
+        // In v1, idempotency moved from body to Idempotency-Key header (handled by apiPost).
         HttpResponse<String> response = apiPost(token,
-                "/api/v1/advice-sessions/" + sessionId + "/ready-to-sign",
-                String.format("""
-                {"idempotency_key":"manual-s7-ready-to-sign-%d"}
-                """, System.currentTimeMillis()));
+                "/api/v1/advice-sessions/" + sessionId + "/mark-ready-to-sign",
+                "{}");
 
         assertTrue(response.statusCode() < 300,
                 "Mark ready to sign should succeed, got: " + response.statusCode() + " " + response.body());
@@ -372,15 +425,14 @@ class StartAdviseScenario extends BaseScenario {
     }
 
     @Test
-    @Order(20)
+    @Order(SESSION + 6)
     void markSessionSigned() throws Exception {
         assertTrue(sessionId > 0, "Session must be created first");
 
+        // In v1, idempotency moved from body to Idempotency-Key header (handled by apiPost).
         HttpResponse<String> response = apiPost(token,
-                "/api/v1/advice-sessions/" + sessionId + "/signed",
-                String.format("""
-                {"idempotency_key":"manual-s7-signed-%d"}
-                """, System.currentTimeMillis()));
+                "/api/v1/advice-sessions/" + sessionId + "/mark-signed",
+                "{}");
 
         assertTrue(response.statusCode() < 300,
                 "Mark session signed should succeed, got: " + response.statusCode() + " " + response.body());
@@ -391,7 +443,7 @@ class StartAdviseScenario extends BaseScenario {
     }
 
     @Test
-    @Order(21)
+    @Order(VERIFY + 1)
     void readSessionFinal() throws Exception {
         assertTrue(sessionId > 0, "Session must be created first");
 
@@ -406,15 +458,16 @@ class StartAdviseScenario extends BaseScenario {
     }
 
     @Test
-    @Order(22)
+    @Order(TEARDOWN + 1)
     void closeAdviceContext() throws Exception {
         assertTrue(adviceContextId > 0, "Advice context must be created first");
 
+        // In v1, idempotency_key moved from body to header (handled by apiPost).
         HttpResponse<String> response = apiPost(token,
                 "/api/v1/advice-contexts/" + adviceContextId + "/close",
-                String.format("""
-                {"idempotency_key":"manual-s7-close-%d","reason":"Scenario complete"}
-                """, System.currentTimeMillis()));
+                """
+                {"reason":"Scenario complete"}
+                """);
 
         assertTrue(response.statusCode() < 300,
                 "Close advice context should succeed, got: " + response.statusCode() + " " + response.body());
@@ -426,7 +479,7 @@ class StartAdviseScenario extends BaseScenario {
     // is best-effort via @AfterAll.
 
     @Test
-    @Order(23)
+    @Order(TEARDOWN + 2)
     void deletePortfolio() throws Exception {
         assertTrue(portfolioId > 0, "Portfolio must be created first");
         HttpResponse<String> response = apiDelete(token, "/api/v1/portfolios/" + portfolioId);
@@ -437,9 +490,6 @@ class StartAdviseScenario extends BaseScenario {
 
     @AfterAll
     static void teardown() {
-        if (token == null) return;
-        if (portfolioId > 0) deleteEntity(token, "/api/v1/portfolios/" + portfolioId);
-        if (clientId > 0) deleteEntity(token, "/api/v1/clients/" + clientId);
-        if (personId > 0) deleteEntity(token, "/api/v1/persons/" + personId);
+        runCleanup();
     }
 }

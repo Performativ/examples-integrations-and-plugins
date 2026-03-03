@@ -39,13 +39,15 @@ public final class SignatureVerifier {
      *
      * @param payload   the raw JSON request body (bytes as received, before parsing)
      * @param signature the value of the {@code x-webhook-signature} header, or {@code null}
-     * @return {@code true} if the signature is valid or if no signature was provided
-     *         (unsigned webhooks are valid when no signing key is configured)
+     * @return {@code true} if the signature is valid; {@code false} if the signature is
+     *         missing or does not match the expected HMAC
      */
     public boolean verify(byte[] payload, String signature) {
         if (signature == null || signature.isBlank()) {
-            // Unsigned webhook - acceptable if no signing key was configured
-            return true;
+            // A signing key is configured (this verifier exists), but the request
+            // has no signature — reject it. The no-signing-key case should be
+            // handled at the call site by not constructing a verifier at all.
+            return false;
         }
 
         byte[] computed = computeHmac(payload);

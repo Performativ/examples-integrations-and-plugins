@@ -29,7 +29,7 @@ class ApiAccessScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(1)
+    @Order(SETUP + 1)
     void listClientsViaGeneratedClient() throws ApiException {
         ClientsIndex200Response response = clientApi.clientsIndex(
                 null, null, null, null, null, null, null, null, null, null, null);
@@ -40,7 +40,7 @@ class ApiAccessScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(2)
+    @Order(VERIFY + 1)
     void rejectUnauthenticatedAccess() {
         // Verify the API rejects requests without a valid token
         ApiClient unauthClient = new ApiClient();

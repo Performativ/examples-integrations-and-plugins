@@ -61,22 +61,23 @@ CLIENT_ID=$(echo "$CLIENT" | python3 -c "import sys,json; print(json.load(sys.st
 echo "Created Client ID: ${CLIENT_ID}"
 
 echo ""
-echo "=== 3b. Link Person to Client ==="
-curl -s -X POST "${API}/api/v1/client-persons" \
+echo "=== 4. Link Person to Client ==="
+LINK_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1/client-persons" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
-    -d "{\"client_id\":${CLIENT_ID},\"person_id\":${PERSON_ID},\"is_primary\":true}" \
-    -o /dev/null -w "HTTP %{http_code}\n"
+    -d "{\"client_id\":${CLIENT_ID},\"person_id\":${PERSON_ID},\"is_primary\":true}")
+echo "HTTP ${LINK_STATUS}"
+if [ "$LINK_STATUS" != "201" ]; then echo "ERROR: Expected 201, got ${LINK_STATUS}"; exit 1; fi
 
 echo ""
-echo "=== 4. Read back Client ==="
+echo "=== 5. Read back Client ==="
 curl -s "${API}/api/v1/clients/${CLIENT_ID}" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Accept: application/json" | python3 -m json.tool | head -20
 
 echo ""
-echo "=== 5. Update Client ==="
+echo "=== 6. Update Client ==="
 curl -s -X PUT "${API}/api/v1/clients/${CLIENT_ID}" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
@@ -84,11 +85,11 @@ curl -s -X PUT "${API}/api/v1/clients/${CLIENT_ID}" \
     -d '{"name":"Curl-S2 Client Updated","type":"individual","currency_id":47}' -o /dev/null -w "HTTP %{http_code}\n"
 
 echo ""
-echo "=== 6. Read back Person ==="
+echo "=== 7. Read back Person ==="
 curl -s "${API}/api/v1/persons/${PERSON_ID}" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Accept: application/json" | python3 -m json.tool | head -20
 
 echo ""
-echo "=== 7-8. Delete (handled by cleanup trap) ==="
+echo "=== 8-9. Delete (handled by cleanup trap) ==="
 echo "Done. All entities created, read, updated, and will be cleaned up."

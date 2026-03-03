@@ -32,6 +32,7 @@ class WebhookDeliveryScenario extends GeneratedClientScenario {
     private static String token;
     private static PersonApi personApi;
     private static int personId;
+    private static String createdBefore; // ISO-8601 timestamp recorded before person creation
 
     @BeforeAll
     static void setup() throws Exception {
@@ -44,38 +45,44 @@ class WebhookDeliveryScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(1)
+    @Order(SETUP + 1)
     void createPerson() throws ApiException {
+        // Record timestamp before creation so we can use ?since= when polling
+        createdBefore = java.time.Instant.now().minusSeconds(1).toString();
+
         var req = new StorePersonRequest()
                 .firstName("Gen")
                 .lastName("S4-WebhookDelivery")
                 .email("gen-s4@example.com")
                 .languageCode("en");
 
-        var response = personApi.personsStore(req);
+        var response = personApi.personsStore(req, idempotencyKey());
         assertNotNull(response, "Person store response should not be null");
         assertNotNull(response.getData(), "Person data should not be null");
 
         personId = response.getData().getId();
         assertTrue(personId > 0, "Person ID should be positive");
+        registerCleanup(token, "/api/v1/persons/" + personId);
     }
 
     @Test
-    @Order(2)
+    @Order(SETUP + 2)
     void waitForDeliveryProcessing() throws Exception {
         assertTrue(personId > 0, "Person must be created first");
         Thread.sleep(5_000);
     }
 
     @Test
-    @Order(3)
+    @Order(VERIFY + 1)
     void pollAndVerifyDelivery() throws Exception {
         assertTrue(personId > 0, "Person must be created first");
 
         String pluginSlug = dotenv.get("PLUGIN_SLUG");
         String instanceId = dotenv.get("PLUGIN_INSTANCE_ID");
-        String pollPath = String.format("/api/v1/plugins/%s/instances/%s/webhook-deliveries/poll?limit=50",
-                pluginSlug, instanceId);
+        // Use ?since= to avoid scanning from the beginning of time (the poll
+        // endpoint is a cursor-based forward stream, oldest-first).
+        String pollPath = String.format("/api/v1/plugins/%s/instances/%s/webhook-deliveries/poll?limit=50&since=%s",
+                pluginSlug, instanceId, createdBefore);
 
         // Use raw HTTP for the delivery poll endpoint (plugin management API)
         HttpResponse<String> response = apiGet(token, pollPath);
@@ -112,16 +119,15 @@ class WebhookDeliveryScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(4)
+    @Order(TEARDOWN + 1)
     void deletePerson() throws ApiException {
         assertTrue(personId > 0, "Person must be created first");
-        personApi.personsDestroy(String.valueOf(personId), String.valueOf(personId));
+        personApi.personsDestroy(String.valueOf(personId));
         personId = 0;
     }
 
     @AfterAll
     static void teardown() {
-        if (token == null) return;
-        if (personId > 0) deleteEntity(token, "/api/v1/persons/" + personId);
+        runCleanup();
     }
 }

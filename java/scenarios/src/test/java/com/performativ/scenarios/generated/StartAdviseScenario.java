@@ -16,7 +16,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S7: Start Advise — full advice session lifecycle using generated client.
+ * S8: Start Advise — full advice session lifecycle using generated client.
  *
  * <p>Creates prerequisites (Person → Client → Portfolio), opens an advice
  * context, creates an advisory agreement, starts an advice session, and
@@ -89,8 +89,8 @@ class StartAdviseScenario extends GeneratedClientScenario {
     void createPerson() throws ApiException {
         var req = new StorePersonRequest()
                 .firstName("Gen")
-                .lastName("S7-StartAdvise")
-                .email("gen-s7@example.com")
+                .lastName("S8-StartAdvise")
+                .email("gen-s8@example.com")
                 .languageCode("en");
 
         var response = personApi.personsStore(req, idempotencyKey());
@@ -106,7 +106,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
     @Order(SETUP + 3)
     void createClient() throws ApiException {
         var req = new StoreClientRequest()
-                .name("Gen-S7 Client")
+                .name("Gen-S8 Client")
                 .type(StoreClientRequest.TypeEnum.INDIVIDUAL)
                 .isActive(true)
                 .currencyId(47);
@@ -140,7 +140,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
         assertTrue(clientId > 0, "Client must be created first");
 
         var req = new StorePortfolioRequest()
-                .name("Gen-S7 Portfolio")
+                .name("Gen-S8 Portfolio")
                 .clientId(clientId)
                 .currencyId(47);
 
@@ -160,8 +160,8 @@ class StartAdviseScenario extends GeneratedClientScenario {
     void uploadDocument() throws Exception {
         // Multipart upload uses raw HTTP — generated clients often lack clean
         // multipart support, and this keeps the upload pattern consistent.
-        Path tempFile = Files.createTempFile("gen-s7-agreement-", ".txt");
-        Files.writeString(tempFile, "Hello World - Gen S7 Advisory Agreement");
+        Path tempFile = Files.createTempFile("gen-s8-agreement-", ".txt");
+        Files.writeString(tempFile, "Hello World - Gen S8 Advisory Agreement");
 
         try {
             HttpResponse<String> response = apiPostMultipart(token, "/api/v1/documents",
@@ -182,7 +182,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
     @Order(ENVELOPE + 2)
     void createSigningEnvelope() throws ApiException {
         var req = new StoreSigningEnvelopeRequest()
-                .title("Gen-S7 Agreement Envelope");
+                .title("Gen-S8 Agreement Envelope");
 
         var response = signingEnvelopeApi.signingEnvelopesStore(idempotencyKey(), req);
         assertNotNull(response);
@@ -242,7 +242,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
         // with client_id (v1 change from person-centric to client-centric).
         HttpResponse<String> response = apiPost(token, "/api/v1/advice-contexts",
                 String.format("""
-                {"advice_policy_id":%d,"type":"individual","name":"Gen-S7 Advice Context","reference_person_id":%d,"members":[{"person_id":%d,"client_id":%d,"power_of_attorney":false}]}
+                {"advice_policy_id":%d,"type":"individual","name":"Gen-S8 Advice Context","reference_person_id":%d,"members":[{"person_id":%d,"client_id":%d,"power_of_attorney":false}]}
                 """, advicePolicyId, personId, personId, clientId));
 
         assertTrue(response.statusCode() < 300,
@@ -265,7 +265,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
         var req = new StoreAdvisoryAgreementRequest()
                 .version("1.0")
                 .signingEnvelopeId(envelopeId)
-                .externalReference("gen-s7-agreement");
+                .externalReference("gen-s8-agreement");
 
         var response = advisoryAgreementApi.v1AdviceAgreementsStoreForContext(
                 String.valueOf(adviceContextId), idempotencyKey(), req);
@@ -297,8 +297,8 @@ class StartAdviseScenario extends GeneratedClientScenario {
         assertTrue(documentId > 0, "Document must be uploaded first");
 
         // Upload a separate signed document
-        var tempFile = Files.createTempFile("gen-s7-signed-", ".txt");
-        Files.writeString(tempFile, "Signed Advisory Agreement - Gen S7");
+        var tempFile = Files.createTempFile("gen-s8-signed-", ".txt");
+        Files.writeString(tempFile, "Signed Advisory Agreement - Gen S8");
         try {
             HttpResponse<String> docResp = apiPostMultipart(token, "/api/v1/documents",
                     tempFile, "file", Map.of("type", "advisory_agreement"));
@@ -357,8 +357,8 @@ class StartAdviseScenario extends GeneratedClientScenario {
         assertTrue(adviceContextId > 0, "Advice context must be created first");
 
         var req = new StoreAdviceSessionRequest()
-                .externalSessionId("gen-s7-session")
-                .externalReference("gen-s7");
+                .externalSessionId("gen-s8-session")
+                .externalReference("gen-s8");
 
         var response = adviceSessionApi.v1AdviceSessionsStoreForContext(
                 String.valueOf(adviceContextId), idempotencyKey(), req);

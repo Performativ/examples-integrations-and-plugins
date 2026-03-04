@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# S7: Start Advise — curl example
+# S8: Start Advise — curl example
 #
 # Demonstrates: full advice session lifecycle.
 # Person → Client → Portfolio → Document upload → Signing envelope →
@@ -65,7 +65,7 @@ PERSON=$(curl -s -X POST "${API}/api/v1/persons" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d '{"first_name":"Curl","last_name":"S7-StartAdvise","email":"curl-s7@example.com","language_code":"en"}')
+    -d '{"first_name":"Curl","last_name":"S8-StartAdvise","email":"curl-s8@example.com","language_code":"en"}')
 
 PERSON_ID=$(echo "$PERSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Created Person ID: ${PERSON_ID}"
@@ -77,7 +77,7 @@ CLIENT=$(curl -s -X POST "${API}/api/v1/clients" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d '{"name":"Curl-S7 Client","type":"individual","is_active":true,"currency_id":47}')
+    -d '{"name":"Curl-S8 Client","type":"individual","is_active":true,"currency_id":47}')
 
 CLIENT_ID=$(echo "$CLIENT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Created Client ID: ${CLIENT_ID}"
@@ -100,7 +100,7 @@ PORTFOLIO=$(curl -s -X POST "${API}/api/v1/portfolios" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"name\":\"Curl-S7 Portfolio\",\"client_id\":${CLIENT_ID},\"currency_id\":47}")
+    -d "{\"name\":\"Curl-S8 Portfolio\",\"client_id\":${CLIENT_ID},\"currency_id\":47}")
 
 PORTFOLIO_ID=$(echo "$PORTFOLIO" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Created Portfolio ID: ${PORTFOLIO_ID}"
@@ -109,8 +109,8 @@ echo "Created Portfolio ID: ${PORTFOLIO_ID}"
 
 echo ""
 echo "=== 6. Upload Document (multipart) ==="
-TMPFILE=$(mktemp /tmp/curl-s7-agreement-XXXXXX.txt)
-echo "Hello World - Curl S7 Advisory Agreement" > "$TMPFILE"
+TMPFILE=$(mktemp /tmp/curl-s8-agreement-XXXXXX.txt)
+echo "Hello World - Curl S8 Advisory Agreement" > "$TMPFILE"
 
 DOC=$(curl -s -X POST "${API}/api/v1/documents" \
     -H "Authorization: Bearer ${TOKEN}" \
@@ -131,7 +131,7 @@ ENVELOPE=$(curl -s -X POST "${API}/api/v1/signing-envelopes" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d '{"title":"Curl-S7 Agreement Envelope"}')
+    -d '{"title":"Curl-S8 Agreement Envelope"}')
 
 ENVELOPE_ID=$(echo "$ENVELOPE" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Created Envelope ID: ${ENVELOPE_ID}"
@@ -178,7 +178,7 @@ CONTEXT=$(curl -s -X POST "${API}/api/v1/advice-contexts" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"advice_policy_id\":${POLICY_ID},\"type\":\"individual\",\"name\":\"Curl-S7 Advice Context\",\"reference_person_id\":${PERSON_ID},\"members\":[{\"person_id\":${PERSON_ID},\"client_id\":${CLIENT_ID},\"power_of_attorney\":false}]}")
+    -d "{\"advice_policy_id\":${POLICY_ID},\"type\":\"individual\",\"name\":\"Curl-S8 Advice Context\",\"reference_person_id\":${PERSON_ID},\"members\":[{\"person_id\":${PERSON_ID},\"client_id\":${CLIENT_ID},\"power_of_attorney\":false}]}")
 
 CONTEXT_ID=$(echo "$CONTEXT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Created Advice Context ID: ${CONTEXT_ID}"
@@ -190,7 +190,7 @@ AGREEMENT=$(curl -s -X POST "${API}/api/v1/advice-contexts/${CONTEXT_ID}/agreeme
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"version\":\"1.0\",\"signing_envelope_id\":${ENVELOPE_ID},\"external_reference\":\"curl-s7-agreement\"}")
+    -d "{\"version\":\"1.0\",\"signing_envelope_id\":${ENVELOPE_ID},\"external_reference\":\"curl-s8-agreement\"}")
 
 AGREEMENT_ID=$(echo "$AGREEMENT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Created Agreement ID: ${AGREEMENT_ID}, status: draft"
@@ -207,8 +207,8 @@ echo "Submit-signing status: $(echo "$SUBMIT_RESULT" | python3 -c "import sys,js
 
 echo ""
 echo "=== 14. Upload signed document ==="
-SIGNED_TMPFILE=$(mktemp /tmp/curl-s7-signed-XXXXXX.txt)
-echo "Signed Advisory Agreement - Curl S7" > "$SIGNED_TMPFILE"
+SIGNED_TMPFILE=$(mktemp /tmp/curl-s8-signed-XXXXXX.txt)
+echo "Signed Advisory Agreement - Curl S8" > "$SIGNED_TMPFILE"
 
 SIGNED_DOC=$(curl -s -X POST "${API}/api/v1/documents" \
     -H "Authorization: Bearer ${TOKEN}" \
@@ -284,7 +284,7 @@ SESSION=$(curl -s -X POST "${API}/api/v1/advice-contexts/${CONTEXT_ID}/sessions"
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d '{"external_session_id":"curl-s7-session","external_reference":"curl-s7"}')
+    -d '{"external_session_id":"curl-s8-session","external_reference":"curl-s8"}')
 
 SESSION_ID=$(echo "$SESSION" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 SESSION_STATUS=$(echo "$SESSION" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['status'])")

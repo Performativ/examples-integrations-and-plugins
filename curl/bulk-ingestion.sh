@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# S5: Bulk Ingestion — curl example
+# S6: Bulk Ingestion — curl example
 #
 # Demonstrates: acquire token, create a bulk async batch, obtain a presigned
 # upload URL via v1 API.
@@ -19,7 +19,7 @@ load_env "$SCRIPT_DIR"
 acquire_token
 
 echo ""
-echo "=== S5: Bulk Ingestion ==="
+echo "=== S6: Bulk Ingestion ==="
 
 step "Create batch"
 BATCH_RESPONSE=$(curl -s -X POST "${API}/api/v1/bulk/async/batches" \

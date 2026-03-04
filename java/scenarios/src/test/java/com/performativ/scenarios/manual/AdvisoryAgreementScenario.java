@@ -12,7 +12,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S6: Advisory Agreement — Signing Provider Plugin Perspective.
+ * S7: Advisory Agreement — Signing Provider Plugin Perspective.
  *
  * <p>Tells the advisory agreement signing story from the viewpoint of a
  * signing-provider plugin. The plugin receives an AdviceContext.Created
@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * <p>Cleanup: Client and Person are <b>not</b> deleted. Once an advice context
  * references these entities, they cannot be removed via the API (FK constraint,
- * backend #6183). Prefixed names ({@code Manual-S6}) make orphans identifiable.
+ * backend #6183). Prefixed names ({@code Manual-S7}) make orphans identifiable.
  *
  * @see <a href="../../../../../../../../../SCENARIOS.md">SCENARIOS.md</a>
  */
@@ -71,7 +71,7 @@ class AdvisoryAgreementScenario extends BaseScenario {
     void createPerson() throws Exception {
         JsonNode person = createEntity(token, "/api/v1/persons",
                 """
-                {"first_name":"Manual","last_name":"S6-AdvisoryAgreement","email":"manual-s6@example.com","language_code":"en"}
+                {"first_name":"Manual","last_name":"S7-AdvisoryAgreement","email":"manual-s7@example.com","language_code":"en"}
                 """);
 
         personId = person.get("id").asInt();
@@ -84,7 +84,7 @@ class AdvisoryAgreementScenario extends BaseScenario {
     void createClient() throws Exception {
         JsonNode client = createEntity(token, "/api/v1/clients",
                 """
-                {"name":"Manual-S6 Client","type":"individual","is_active":true,"currency_id":47}
+                {"name":"Manual-S7 Client","type":"individual","is_active":true,"currency_id":47}
                 """);
 
         clientId = client.get("id").asInt();
@@ -119,7 +119,7 @@ class AdvisoryAgreementScenario extends BaseScenario {
 
         HttpResponse<String> response = apiPost(token, "/api/v1/advice-contexts",
                 String.format("""
-                {"advice_policy_id":%d,"type":"individual","name":"Manual-S6 Advice Context","reference_person_id":%d,"members":[{"person_id":%d,"client_id":%d,"power_of_attorney":false}]}
+                {"advice_policy_id":%d,"type":"individual","name":"Manual-S7 Advice Context","reference_person_id":%d,"members":[{"person_id":%d,"client_id":%d,"power_of_attorney":false}]}
                 """, advicePolicyId, personId, personId, clientId));
 
         assertTrue(response.statusCode() < 300,
@@ -161,8 +161,8 @@ class AdvisoryAgreementScenario extends BaseScenario {
     void uploadSourceDocument() throws Exception {
         // Plugin generates the advisory agreement document (e.g., from a
         // template engine) and uploads it via multipart POST.
-        Path tempFile = Files.createTempFile("manual-s6-agreement-", ".txt");
-        Files.writeString(tempFile, "Hello World - Manual S6 Advisory Agreement");
+        Path tempFile = Files.createTempFile("manual-s7-agreement-", ".txt");
+        Files.writeString(tempFile, "Hello World - Manual S7 Advisory Agreement");
 
         try {
             HttpResponse<String> response = apiPostMultipart(token, "/api/v1/documents",
@@ -184,7 +184,7 @@ class AdvisoryAgreementScenario extends BaseScenario {
     void createSigningEnvelope() throws Exception {
         HttpResponse<String> response = apiPost(token, "/api/v1/signing-envelopes",
                 """
-                {"title":"Manual-S6 Agreement Envelope"}
+                {"title":"Manual-S7 Agreement Envelope"}
                 """);
 
         assertTrue(response.statusCode() < 300,
@@ -318,7 +318,7 @@ class AdvisoryAgreementScenario extends BaseScenario {
         HttpResponse<String> response = apiPost(token,
                 "/api/v1/advice-agreements/" + agreementId + "/report-signing-progress",
                 """
-                {"substatus":"Waiting for signers","signing_progress":{"provider":"example-signing-provider","status":"in_progress","signed_count":0,"total_signers":1,"signers":[{"name":"Manual S6-AdvisoryAgreement","email":"manual-s6@example.com","status":"pending"}]}}
+                {"substatus":"Waiting for signers","signing_progress":{"provider":"example-signing-provider","status":"in_progress","signed_count":0,"total_signers":1,"signers":[{"name":"Manual S7-AdvisoryAgreement","email":"manual-s7@example.com","status":"pending"}]}}
                 """);
 
         assertTrue(response.statusCode() < 300,
@@ -335,8 +335,8 @@ class AdvisoryAgreementScenario extends BaseScenario {
     void uploadSignedDocument() throws Exception {
         // The signing provider has collected all signatures. The plugin
         // downloads the signed copy from the provider and uploads it.
-        Path tempFile = Files.createTempFile("manual-s6-signed-", ".txt");
-        Files.writeString(tempFile, "Signed Advisory Agreement - Manual S6");
+        Path tempFile = Files.createTempFile("manual-s7-signed-", ".txt");
+        Files.writeString(tempFile, "Signed Advisory Agreement - Manual S7");
 
         try {
             HttpResponse<String> response = apiPostMultipart(token, "/api/v1/documents",
@@ -405,7 +405,7 @@ class AdvisoryAgreementScenario extends BaseScenario {
         HttpResponse<String> response = apiPost(token,
                 "/api/v1/advice-agreements/" + agreementId + "/report-signing-progress",
                 String.format("""
-                {"substatus":"All parties signed","signing_progress":{"provider":"example-signing-provider","status":"completed","signed_count":1,"total_signers":1,"signers":[{"name":"Manual S6-AdvisoryAgreement","email":"manual-s6@example.com","status":"signed","signed_at":"%s"}]}}
+                {"substatus":"All parties signed","signing_progress":{"provider":"example-signing-provider","status":"completed","signed_count":1,"total_signers":1,"signers":[{"name":"Manual S7-AdvisoryAgreement","email":"manual-s7@example.com","status":"signed","signed_at":"%s"}]}}
                 """, signedAt));
 
         assertTrue(response.statusCode() < 300,
@@ -463,5 +463,5 @@ class AdvisoryAgreementScenario extends BaseScenario {
 
     // No @AfterAll teardown. Client and Person cannot be deleted while
     // referenced by the advice context (FK constraint, backend #6183).
-    // Prefixed names (Manual-S6) make orphans identifiable.
+    // Prefixed names (Manual-S7) make orphans identifiable.
 }

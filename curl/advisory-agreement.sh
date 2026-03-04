@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# S6: Advisory Agreement — Signing Provider Plugin Perspective
+# S7: Advisory Agreement — Signing Provider Plugin Perspective
 #
 # Tells the advisory agreement signing story from the viewpoint of a
 # signing-provider plugin. The plugin:
@@ -19,7 +19,7 @@
 #
 # Cleanup: Client and Person are NOT deleted. Once an advice context
 # references these entities, they cannot be removed via the API
-# (FK constraint, backend #6183). Prefixed names (Curl-S6) make
+# (FK constraint, backend #6183). Prefixed names (Curl-S7) make
 # orphans identifiable.
 #
 # Usage:
@@ -52,7 +52,7 @@ PERSON=$(curl -s -X POST "${API}/api/v1/persons" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d '{"first_name":"Curl","last_name":"S6-AdvisoryAgreement","email":"curl-s6@example.com","language_code":"en"}')
+    -d '{"first_name":"Curl","last_name":"S7-AdvisoryAgreement","email":"curl-s7@example.com","language_code":"en"}')
 
 PERSON_ID=$(echo "$PERSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Created Person ID: ${PERSON_ID}"
@@ -64,7 +64,7 @@ CLIENT=$(curl -s -X POST "${API}/api/v1/clients" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d '{"name":"Curl-S6 Client","type":"individual","is_active":true,"currency_id":47}')
+    -d '{"name":"Curl-S7 Client","type":"individual","is_active":true,"currency_id":47}')
 
 CLIENT_ID=$(echo "$CLIENT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Created Client ID: ${CLIENT_ID}"
@@ -93,7 +93,7 @@ CONTEXT=$(curl -s -X POST "${API}/api/v1/advice-contexts" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"advice_policy_id\":${POLICY_ID},\"type\":\"individual\",\"name\":\"Curl-S6 Advice Context\",\"reference_person_id\":${PERSON_ID},\"members\":[{\"person_id\":${PERSON_ID},\"client_id\":${CLIENT_ID},\"power_of_attorney\":false}]}")
+    -d "{\"advice_policy_id\":${POLICY_ID},\"type\":\"individual\",\"name\":\"Curl-S7 Advice Context\",\"reference_person_id\":${PERSON_ID},\"members\":[{\"person_id\":${PERSON_ID},\"client_id\":${CLIENT_ID},\"power_of_attorney\":false}]}")
 
 CONTEXT_ID=$(echo "$CONTEXT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 CONTEXT_STATUS=$(echo "$CONTEXT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['status'])")
@@ -119,8 +119,8 @@ echo ""
 echo "=== 7. Upload Source Document ==="
 # Plugin generates the advisory agreement document (e.g., from a
 # template engine) and uploads it via multipart POST.
-TMPFILE=$(mktemp /tmp/curl-s6-agreement-XXXXXX.txt)
-echo "Hello World - Curl S6 Advisory Agreement" > "$TMPFILE"
+TMPFILE=$(mktemp /tmp/curl-s7-agreement-XXXXXX.txt)
+echo "Hello World - Curl S7 Advisory Agreement" > "$TMPFILE"
 
 DOC_RESPONSE=$(curl -s -X POST "${API}/api/v1/documents" \
     -H "Authorization: Bearer ${TOKEN}" \
@@ -141,7 +141,7 @@ ENVELOPE=$(curl -s -X POST "${API}/api/v1/signing-envelopes" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d '{"title":"Curl-S6 Agreement Envelope"}')
+    -d '{"title":"Curl-S7 Agreement Envelope"}')
 
 ENVELOPE_ID=$(echo "$ENVELOPE" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 ENVELOPE_STATUS=$(echo "$ENVELOPE" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['status'])")
@@ -236,7 +236,7 @@ PROGRESS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1/
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"substatus\":\"Waiting for signers\",\"signing_progress\":{\"provider\":\"example-signing-provider\",\"status\":\"in_progress\",\"signed_count\":0,\"total_signers\":1,\"signers\":[{\"name\":\"Curl S6-AdvisoryAgreement\",\"email\":\"curl-s6@example.com\",\"status\":\"pending\"}]}}")
+    -d "{\"substatus\":\"Waiting for signers\",\"signing_progress\":{\"provider\":\"example-signing-provider\",\"status\":\"in_progress\",\"signed_count\":0,\"total_signers\":1,\"signers\":[{\"name\":\"Curl S7-AdvisoryAgreement\",\"email\":\"curl-s7@example.com\",\"status\":\"pending\"}]}}")
 echo "HTTP ${PROGRESS_STATUS}"
 if [ "$PROGRESS_STATUS" != "200" ]; then echo "ERROR: Expected 200, got ${PROGRESS_STATUS}"; exit 1; fi
 
@@ -249,8 +249,8 @@ echo ""
 echo "=== 16. Upload Signed Document ==="
 # The signing provider has collected all signatures. The plugin
 # downloads the signed copy from the provider and uploads it.
-SIGNED_TMPFILE=$(mktemp /tmp/curl-s6-signed-XXXXXX.txt)
-echo "Signed Advisory Agreement - Curl S6" > "$SIGNED_TMPFILE"
+SIGNED_TMPFILE=$(mktemp /tmp/curl-s7-signed-XXXXXX.txt)
+echo "Signed Advisory Agreement - Curl S7" > "$SIGNED_TMPFILE"
 
 SIGNED_DOC_RESPONSE=$(curl -s -X POST "${API}/api/v1/documents" \
     -H "Authorization: Bearer ${TOKEN}" \
@@ -306,7 +306,7 @@ PROGRESS2_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"substatus\":\"All parties signed\",\"signing_progress\":{\"provider\":\"example-signing-provider\",\"status\":\"completed\",\"signed_count\":1,\"total_signers\":1,\"signers\":[{\"name\":\"Curl S6-AdvisoryAgreement\",\"email\":\"curl-s6@example.com\",\"status\":\"signed\",\"signed_at\":\"${SIGNED_AT}\"}]}}")
+    -d "{\"substatus\":\"All parties signed\",\"signing_progress\":{\"provider\":\"example-signing-provider\",\"status\":\"completed\",\"signed_count\":1,\"total_signers\":1,\"signers\":[{\"name\":\"Curl S7-AdvisoryAgreement\",\"email\":\"curl-s7@example.com\",\"status\":\"signed\",\"signed_at\":\"${SIGNED_AT}\"}]}}")
 echo "HTTP ${PROGRESS2_STATUS}"
 if [ "$PROGRESS2_STATUS" != "200" ]; then echo "ERROR: Expected 200, got ${PROGRESS2_STATUS}"; exit 1; fi
 

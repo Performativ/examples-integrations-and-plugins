@@ -10,7 +10,7 @@ import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S8: Error Responses — verify the generated client surfaces RFC 7807
+ * S9: Error Responses — verify the generated client surfaces RFC 7807
  * Problem Details for validation errors (422) and not-found errors (404).
  *
  * <p>No entities are created or deleted — no cleanup needed.

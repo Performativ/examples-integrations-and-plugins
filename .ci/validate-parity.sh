@@ -27,11 +27,12 @@ scenario_file() {
         s1) echo "api-access" ;;
         s2) echo "client-lifecycle" ;;
         s3) echo "portfolio-setup" ;;
-        s4) echo "webhook-delivery" ;;
-        s5) echo "bulk-ingestion" ;;
-        s6) echo "advisory-agreement" ;;
-        s7) echo "start-advise" ;;
-        s8) echo "error-responses" ;;
+        s4) echo "external-holdings" ;;
+        s5) echo "webhook-delivery" ;;
+        s6) echo "bulk-ingestion" ;;
+        s7) echo "advisory-agreement" ;;
+        s8) echo "start-advise" ;;
+        s9) echo "error-responses" ;;
         *)  echo "" ;;
     esac
 }
@@ -43,11 +44,12 @@ scenario_class() {
         s1) echo "ApiAccessScenario" ;;
         s2) echo "ClientLifecycleScenario" ;;
         s3) echo "PortfolioSetupScenario" ;;
-        s4) echo "WebhookDeliveryScenario" ;;
-        s5) echo "BulkIngestionScenario" ;;
-        s6) echo "AdvisoryAgreementScenario" ;;
-        s7) echo "StartAdviseScenario" ;;
-        s8) echo "ErrorResponsesScenario" ;;
+        s4) echo "ExternalHoldingsScenario" ;;
+        s5) echo "WebhookDeliveryScenario" ;;
+        s6) echo "BulkIngestionScenario" ;;
+        s7) echo "AdvisoryAgreementScenario" ;;
+        s8) echo "StartAdviseScenario" ;;
+        s9) echo "ErrorResponsesScenario" ;;
         *)  echo "" ;;
     esac
 }

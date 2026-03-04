@@ -12,7 +12,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S7: Start Advise — full advice session lifecycle.
+ * S8: Start Advise — full advice session lifecycle.
  *
  * <p>Creates the prerequisite chain (Person → Client → Portfolio),
  * opens an advice context, creates an advisory agreement, starts an
@@ -67,7 +67,7 @@ class StartAdviseScenario extends BaseScenario {
     void createPerson() throws Exception {
         JsonNode person = createEntity(token, "/api/v1/persons",
                 """
-                {"first_name":"Manual","last_name":"S7-StartAdvise","email":"manual-s7@example.com","language_code":"en"}
+                {"first_name":"Manual","last_name":"S8-StartAdvise","email":"manual-s8@example.com","language_code":"en"}
                 """);
 
         personId = person.get("id").asInt();
@@ -80,7 +80,7 @@ class StartAdviseScenario extends BaseScenario {
     void createClient() throws Exception {
         JsonNode client = createEntity(token, "/api/v1/clients",
                 """
-                {"name":"Manual-S7 Client","type":"individual","is_active":true,"currency_id":47}
+                {"name":"Manual-S8 Client","type":"individual","is_active":true,"currency_id":47}
                 """);
 
         clientId = client.get("id").asInt();
@@ -110,7 +110,7 @@ class StartAdviseScenario extends BaseScenario {
 
         JsonNode portfolio = createEntity(token, "/api/v1/portfolios",
                 String.format("""
-                {"name":"Manual-S7 Portfolio","client_id":%d,"currency_id":47}
+                {"name":"Manual-S8 Portfolio","client_id":%d,"currency_id":47}
                 """, clientId));
 
         portfolioId = portfolio.get("id").asInt();
@@ -123,8 +123,8 @@ class StartAdviseScenario extends BaseScenario {
     @Test
     @Order(ENVELOPE + 1)
     void uploadDocument() throws Exception {
-        Path tempFile = Files.createTempFile("manual-s7-agreement-", ".txt");
-        Files.writeString(tempFile, "Hello World - Manual S7 Advisory Agreement");
+        Path tempFile = Files.createTempFile("manual-s8-agreement-", ".txt");
+        Files.writeString(tempFile, "Hello World - Manual S8 Advisory Agreement");
 
         try {
             HttpResponse<String> response = apiPostMultipart(token, "/api/v1/documents",
@@ -146,7 +146,7 @@ class StartAdviseScenario extends BaseScenario {
     void createSigningEnvelope() throws Exception {
         HttpResponse<String> response = apiPost(token, "/api/v1/signing-envelopes",
                 """
-                {"title":"Manual-S7 Agreement Envelope"}
+                {"title":"Manual-S8 Agreement Envelope"}
                 """);
 
         assertTrue(response.statusCode() < 300,
@@ -211,7 +211,7 @@ class StartAdviseScenario extends BaseScenario {
 
         HttpResponse<String> response = apiPost(token, "/api/v1/advice-contexts",
                 String.format("""
-                {"advice_policy_id":%d,"type":"individual","name":"Manual-S7 Advice Context","reference_person_id":%d,"members":[{"person_id":%d,"client_id":%d,"power_of_attorney":false}]}
+                {"advice_policy_id":%d,"type":"individual","name":"Manual-S8 Advice Context","reference_person_id":%d,"members":[{"person_id":%d,"client_id":%d,"power_of_attorney":false}]}
                 """, advicePolicyId, personId, personId, clientId));
 
         assertTrue(response.statusCode() < 300,
@@ -234,7 +234,7 @@ class StartAdviseScenario extends BaseScenario {
         HttpResponse<String> response = apiPost(token,
                 "/api/v1/advice-contexts/" + adviceContextId + "/agreements",
                 String.format("""
-                {"version":"1.0","signing_envelope_id":%d,"external_reference":"manual-s7-agreement"}
+                {"version":"1.0","signing_envelope_id":%d,"external_reference":"manual-s8-agreement"}
                 """, envelopeId));
 
         assertTrue(response.statusCode() < 300,
@@ -269,8 +269,8 @@ class StartAdviseScenario extends BaseScenario {
         assertTrue(documentId > 0, "Document must be uploaded first");
 
         // Upload a separate signed document
-        var tempFile = java.nio.file.Files.createTempFile("manual-s7-signed-", ".txt");
-        java.nio.file.Files.writeString(tempFile, "Signed Advisory Agreement - Manual S7");
+        var tempFile = java.nio.file.Files.createTempFile("manual-s8-signed-", ".txt");
+        java.nio.file.Files.writeString(tempFile, "Signed Advisory Agreement - Manual S8");
         try {
             HttpResponse<String> docResp = apiPostMultipart(token, "/api/v1/documents",
                     tempFile, "file", Map.of("type", "advisory_agreement"));
@@ -342,7 +342,7 @@ class StartAdviseScenario extends BaseScenario {
         HttpResponse<String> response = apiPost(token,
                 "/api/v1/advice-contexts/" + adviceContextId + "/sessions",
                 """
-                {"external_session_id":"manual-s7-session","external_reference":"manual-s7"}
+                {"external_session_id":"manual-s8-session","external_reference":"manual-s7"}
                 """);
 
         assertTrue(response.statusCode() < 300,

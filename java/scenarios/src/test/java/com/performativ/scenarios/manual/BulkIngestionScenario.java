@@ -9,7 +9,7 @@ import java.net.http.HttpResponse;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S5: Bulk Ingestion — create a batch and obtain a presigned upload URL
+ * S6: Bulk Ingestion — create a batch and obtain a presigned upload URL
  * via raw HTTP (v1 endpoints).
  *
  * <p>The batch is not started — this scenario only verifies that the

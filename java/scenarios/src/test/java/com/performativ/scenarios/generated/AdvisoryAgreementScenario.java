@@ -17,7 +17,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S6: Advisory Agreement — Signing Provider Plugin Perspective (generated client).
+ * S7: Advisory Agreement — Signing Provider Plugin Perspective (generated client).
  *
  * <p>Tells the advisory agreement signing story from the viewpoint of a
  * signing-provider plugin. Uses the typed generated client for all operations
@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * <p>Cleanup: Client and Person are <b>not</b> deleted. Once an advice context
  * references these entities, they cannot be removed via the API (FK constraint,
- * backend #6183). Prefixed names ({@code Gen-S6}) make orphans identifiable.
+ * backend #6183). Prefixed names ({@code Gen-S7}) make orphans identifiable.
  *
  * @see <a href="../../../../../../../../../SCENARIOS.md">SCENARIOS.md</a>
  */
@@ -89,8 +89,8 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
     void createPerson() throws ApiException {
         var req = new StorePersonRequest()
                 .firstName("Gen")
-                .lastName("S6-AdvisoryAgreement")
-                .email("gen-s6@example.com")
+                .lastName("S7-AdvisoryAgreement")
+                .email("gen-s7@example.com")
                 .languageCode("en");
 
         var response = personApi.personsStore(req, idempotencyKey());
@@ -105,7 +105,7 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
     @Order(SETUP + 3)
     void createClient() throws ApiException {
         var req = new StoreClientRequest()
-                .name("Gen-S6 Client")
+                .name("Gen-S7 Client")
                 .type(StoreClientRequest.TypeEnum.INDIVIDUAL)
                 .isActive(true)
                 .currencyId(47);
@@ -145,7 +145,7 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
         // with client_id (v1 change from person-centric to client-centric).
         HttpResponse<String> response = apiPost(token, "/api/v1/advice-contexts",
                 String.format("""
-                {"advice_policy_id":%d,"type":"individual","name":"Gen-S6 Advice Context","reference_person_id":%d,"members":[{"person_id":%d,"client_id":%d,"power_of_attorney":false}]}
+                {"advice_policy_id":%d,"type":"individual","name":"Gen-S7 Advice Context","reference_person_id":%d,"members":[{"person_id":%d,"client_id":%d,"power_of_attorney":false}]}
                 """, advicePolicyId, personId, personId, clientId));
 
         assertTrue(response.statusCode() < 300,
@@ -185,8 +185,8 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
     @Test
     @Order(ENVELOPE + 1)
     void uploadSourceDocument() throws Exception {
-        Path tempFile = Files.createTempFile("gen-s6-agreement-", ".txt");
-        Files.writeString(tempFile, "Hello World - Gen S6 Advisory Agreement");
+        Path tempFile = Files.createTempFile("gen-s7-agreement-", ".txt");
+        Files.writeString(tempFile, "Hello World - Gen S7 Advisory Agreement");
 
         try {
             HttpResponse<String> response = apiPostMultipart(token, "/api/v1/documents",
@@ -207,7 +207,7 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
     @Order(ENVELOPE + 2)
     void createSigningEnvelope() throws ApiException {
         var req = new StoreSigningEnvelopeRequest()
-                .title("Gen-S6 Agreement Envelope");
+                .title("Gen-S7 Agreement Envelope");
 
         var response = signingEnvelopeApi.signingEnvelopesStore(idempotencyKey(), req);
         assertNotNull(response);
@@ -315,7 +315,7 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
         HttpResponse<String> response = apiPost(token,
                 "/api/v1/advice-agreements/" + agreementId + "/report-signing-progress",
                 """
-                {"substatus":"Waiting for signers","signing_progress":{"provider":"example-signing-provider","status":"in_progress","signed_count":0,"total_signers":1,"signers":[{"name":"Gen S6-AdvisoryAgreement","email":"gen-s6@example.com","status":"pending"}]}}
+                {"substatus":"Waiting for signers","signing_progress":{"provider":"example-signing-provider","status":"in_progress","signed_count":0,"total_signers":1,"signers":[{"name":"Gen S7-AdvisoryAgreement","email":"gen-s7@example.com","status":"pending"}]}}
                 """);
 
         assertEquals(200, response.statusCode(),
@@ -330,8 +330,8 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
     @Test
     @Order(AGREEMENT + 5)
     void uploadSignedDocument() throws Exception {
-        Path tempFile = Files.createTempFile("gen-s6-signed-", ".txt");
-        Files.writeString(tempFile, "Signed Advisory Agreement - Gen S6");
+        Path tempFile = Files.createTempFile("gen-s7-signed-", ".txt");
+        Files.writeString(tempFile, "Signed Advisory Agreement - Gen S7");
 
         try {
             HttpResponse<String> response = apiPostMultipart(token, "/api/v1/documents",
@@ -387,7 +387,7 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
         HttpResponse<String> response = apiPost(token,
                 "/api/v1/advice-agreements/" + agreementId + "/report-signing-progress",
                 String.format("""
-                {"substatus":"All parties signed","signing_progress":{"provider":"example-signing-provider","status":"completed","signed_count":1,"total_signers":1,"signers":[{"name":"Gen S6-AdvisoryAgreement","email":"gen-s6@example.com","status":"signed","signed_at":"%s"}]}}
+                {"substatus":"All parties signed","signing_progress":{"provider":"example-signing-provider","status":"completed","signed_count":1,"total_signers":1,"signers":[{"name":"Gen S7-AdvisoryAgreement","email":"gen-s7@example.com","status":"signed","signed_at":"%s"}]}}
                 """, signedAt));
 
         assertEquals(200, response.statusCode(),
@@ -437,5 +437,5 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
 
     // No @AfterAll teardown. Client and Person cannot be deleted while
     // referenced by the advice context (FK constraint, backend #6183).
-    // Prefixed names (Gen-S6) make orphans identifiable.
+    // Prefixed names (Gen-S7) make orphans identifiable.
 }

@@ -10,7 +10,7 @@ import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S5: Bulk Ingestion — create a batch and obtain a presigned upload URL
+ * S6: Bulk Ingestion — create a batch and obtain a presigned upload URL
  * using the generated OpenAPI client (v1 endpoints).
  *
  * <p>Strict: if the generated {@link AsyncBatchApi} fails, the test fails.

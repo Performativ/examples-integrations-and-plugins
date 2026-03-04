@@ -18,17 +18,17 @@ Code examples and documentation for building integrations with the Performativ p
 
 ## Code Examples
 
-Seven core scenarios ([S1–S7](SCENARIOS.md)) are implemented across three approaches:
+Nine core scenarios ([S1–S9](SCENARIOS.md)) are implemented across three approaches:
 
 | Approach | Description | Scenarios |
 |----------|-------------|-----------|
-| [curl/](curl/) | Shell scripts using curl -- simplest, no build tools | S1–S7 |
-| [java/manual](java/scenarios/) | Raw HTTP with `java.net.http` -- no dependencies beyond JDK | S1–S7 |
-| [java/generated](java/scenarios/) | OpenAPI-generated typed client -- strict spec conformance | S1–S7 |
+| [curl/](curl/) | Shell scripts using curl -- simplest, no build tools | S1–S9 |
+| [java/manual](java/scenarios/) | Raw HTTP with `java.net.http` -- no dependencies beyond JDK | S1–S9 |
+| [java/generated](java/scenarios/) | OpenAPI-generated typed client -- strict spec conformance | S1–S9 |
 
-S1–S5 cover core CRUD and infrastructure. **S6–S7 are journey scenarios** that exercise the advisory workflow end-to-end:
-- **S6: Advisory Agreement** — document upload → signing envelope → advice context → advisory agreement → submit-signing → mark signed
-- **S7: Start Advise** — full advice session lifecycle including signed agreement prerequisite (created → data_ready → active → ready_to_sign → signed)
+S1–S6 cover core CRUD and infrastructure. **S7–S8 are journey scenarios** that exercise the advisory workflow end-to-end:
+- **S7: Advisory Agreement** — document upload → signing envelope → advice context → advisory agreement → submit-signing → mark signed
+- **S8: Start Advise** — full advice session lifecycle including signed agreement prerequisite (created → data_ready → active → ready_to_sign → signed)
 
 The manual scenarios verify API behavior using raw HTTP. The generated scenarios use the OpenAPI-generated client with **no fallbacks** -- if the generated client fails (wrong types, deserialization errors), the test fails, immediately surfacing spec bugs.
 

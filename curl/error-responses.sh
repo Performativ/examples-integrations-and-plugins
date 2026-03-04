@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# S8: Error Responses — curl example
+# S9: Error Responses — curl example
 #
 # Demonstrates: API error handling with RFC 7807 Problem Details responses.
 # Exercises validation errors (422) and not-found errors (404).

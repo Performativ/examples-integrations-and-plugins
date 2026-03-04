@@ -9,7 +9,7 @@ import java.net.http.HttpResponse;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S4: Webhook Delivery — create a Person, poll the v1 delivery endpoint,
+ * S5: Webhook Delivery — create a Person, poll the v1 delivery endpoint,
  * verify that a Person.Created delivery appears, then delete.
  *
  * <p>Uses the delivery-polling API as a CI-friendly verification approach.
@@ -44,7 +44,7 @@ class WebhookDeliveryScenario extends BaseScenario {
 
         JsonNode person = createEntity(token, "/api/v1/persons",
                 """
-                {"first_name":"Manual","last_name":"S4-WebhookDelivery","email":"manual-s4@example.com","language_code":"en"}
+                {"first_name":"Manual","last_name":"S5-WebhookDelivery","email":"manual-s5@example.com","language_code":"en"}
                 """);
 
         personId = person.get("id").asInt();

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# S4: Webhook Delivery — curl example
+# S5: Webhook Delivery — curl example
 #
 # Demonstrates: acquire token, create a Person (to trigger webhook),
 # poll the v1 delivery endpoint to verify the webhook was delivered, then clean up.
@@ -48,7 +48,7 @@ PERSON=$(curl -s -X POST "${API}/api/v1/persons" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d '{"first_name":"Curl","last_name":"S4-WebhookDelivery","email":"curl-s4@example.com","language_code":"en"}')
+    -d '{"first_name":"Curl","last_name":"S5-WebhookDelivery","email":"curl-s5@example.com","language_code":"en"}')
 
 PERSON_ID=$(extract_id "$PERSON")
 echo "Created Person ID: ${PERSON_ID}"

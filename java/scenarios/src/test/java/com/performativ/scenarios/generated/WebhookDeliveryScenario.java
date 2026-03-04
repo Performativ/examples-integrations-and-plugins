@@ -12,7 +12,7 @@ import java.net.http.HttpResponse;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S4: Webhook Delivery — create a Person via the generated client, poll the
+ * S5: Webhook Delivery — create a Person via the generated client, poll the
  * v1 delivery endpoint, verify that a Person.Created delivery appears, then delete.
  *
  * <p>Uses the generated client for Person CRUD (testing typed models) and raw
@@ -52,8 +52,8 @@ class WebhookDeliveryScenario extends GeneratedClientScenario {
 
         var req = new StorePersonRequest()
                 .firstName("Gen")
-                .lastName("S4-WebhookDelivery")
-                .email("gen-s4@example.com")
+                .lastName("S5-WebhookDelivery")
+                .email("gen-s5@example.com")
                 .languageCode("en");
 
         var response = personApi.personsStore(req, idempotencyKey());

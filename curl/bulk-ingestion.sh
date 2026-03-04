@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# S5: Bulk Ingestion — curl example
+# S6: Bulk Ingestion — curl example
 #
 # Demonstrates: acquire token, create a bulk async batch, obtain a presigned
 # upload URL via v1 API.
@@ -13,26 +13,25 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/../.ci/lib/auth.sh"
+source "${SCRIPT_DIR}/../.ci/lib/helpers.sh"
 
 load_env "$SCRIPT_DIR"
 acquire_token
 
 echo ""
-echo "=== S5: Bulk Ingestion ==="
+echo "=== S6: Bulk Ingestion ==="
 
-echo ""
-echo "=== 1. Create batch ==="
+step "Create batch"
 BATCH_RESPONSE=$(curl -s -X POST "${API}/api/v1/bulk/async/batches" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -d '{"upload_mode":"presigned"}')
 
-BATCH_ID=$(echo "$BATCH_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['batch_id'])")
+BATCH_ID=$(extract_field "$BATCH_RESPONSE" "data.batch_id")
 echo "Created batch ID: ${BATCH_ID}"
 
-echo ""
-echo "=== 2. Get presigned URL ==="
+step "Get presigned URL"
 PRESIGNED_RESPONSE=$(curl -s -X POST "${API}/api/v1/bulk/async/batches/${BATCH_ID}/presigned-url" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \

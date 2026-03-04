@@ -36,8 +36,9 @@ Both packages implement the same scenarios. When a `generated/` test fails but t
 | S1: API Access | `ApiAccessScenario` | `ApiAccessScenario` | OAuth2 | Yes |
 | S2: Client Lifecycle | `ClientLifecycleScenario` | `ClientLifecycleScenario` | OAuth2 | Yes |
 | S3: Portfolio Setup | `PortfolioSetupScenario` | `PortfolioSetupScenario` | OAuth2 | Yes |
-| S4: Webhook Delivery | `WebhookDeliveryScenario` | `WebhookDeliveryScenario` | OAuth2 | Yes |
-| S5: Bulk Ingestion | `BulkIngestionScenario` | `BulkIngestionScenario` | OAuth2 | Yes |
+| S4: External Holdings | `ExternalHoldingsScenario` | `ExternalHoldingsScenario` | OAuth2 | Yes |
+| S5: Webhook Delivery | `WebhookDeliveryScenario` | `WebhookDeliveryScenario` | OAuth2 | Yes |
+| S6: Bulk Ingestion | `BulkIngestionScenario` | `BulkIngestionScenario` | OAuth2 | Yes |
 
 See [SCENARIOS.md](../../SCENARIOS.md) for canonical step definitions.
 

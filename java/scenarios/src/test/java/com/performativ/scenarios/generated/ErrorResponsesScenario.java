@@ -10,7 +10,7 @@ import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S8: Error Responses — verify the generated client surfaces RFC 7807
+ * S9: Error Responses — verify the generated client surfaces RFC 7807
  * Problem Details for validation errors (422) and not-found errors (404).
  *
  * <p>No entities are created or deleted — no cleanup needed.
@@ -33,10 +33,10 @@ class ErrorResponsesScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(1)
+    @Order(VERIFY + 1)
     void createClientValidationError() throws Exception {
         ApiException ex = assertThrows(ApiException.class, () ->
-                clientApi.clientsStore(new StoreClientRequest()));
+                clientApi.clientsStore(new StoreClientRequest(), idempotencyKey()));
         assertEquals(422, ex.getCode(),
                 "Empty client payload should return 422, got: " + ex.getCode());
 
@@ -58,10 +58,10 @@ class ErrorResponsesScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(2)
+    @Order(VERIFY + 2)
     void readNonExistentClient() throws Exception {
         ApiException ex = assertThrows(ApiException.class, () ->
-                clientApi.clientsShow("0", "0", null));
+                clientApi.clientsShow("0", null));
         assertEquals(404, ex.getCode(),
                 "Non-existent client should return 404, got: " + ex.getCode());
 

@@ -9,7 +9,7 @@ import java.net.http.HttpResponse;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * S5: Bulk Ingestion — create a batch and obtain a presigned upload URL
+ * S6: Bulk Ingestion — create a batch and obtain a presigned upload URL
  * via raw HTTP (v1 endpoints).
  *
  * <p>The batch is not started — this scenario only verifies that the
@@ -30,7 +30,7 @@ class BulkIngestionScenario extends BaseScenario {
     }
 
     @Test
-    @Order(1)
+    @Order(SETUP + 1)
     void createBatch() throws Exception {
         HttpResponse<String> response = apiPost(token, "/api/v1/bulk/async/batches",
                 """
@@ -47,7 +47,7 @@ class BulkIngestionScenario extends BaseScenario {
     }
 
     @Test
-    @Order(2)
+    @Order(VERIFY + 1)
     void getPresignedUrl() throws Exception {
         assertNotNull(batchId, "Batch must be created first");
 

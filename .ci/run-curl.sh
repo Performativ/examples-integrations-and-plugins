@@ -12,6 +12,7 @@ SCRIPTS=(
     "curl/api-access.sh"
     "curl/client-lifecycle.sh"
     "curl/portfolio-setup.sh"
+    "curl/external-holdings.sh"
     "curl/webhook-delivery.sh"
     "curl/bulk-ingestion.sh"
     "curl/advisory-agreement.sh"

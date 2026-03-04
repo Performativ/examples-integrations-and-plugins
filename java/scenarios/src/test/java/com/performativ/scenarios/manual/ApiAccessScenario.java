@@ -25,7 +25,7 @@ class ApiAccessScenario extends BaseScenario {
     }
 
     @Test
-    @Order(1)
+    @Order(SETUP + 1)
     void acquireTokenAndListClients() throws Exception {
         String token = acquireToken();
         assertNotNull(token);
@@ -40,7 +40,7 @@ class ApiAccessScenario extends BaseScenario {
     }
 
     @Test
-    @Order(2)
+    @Order(VERIFY + 1)
     void rejectUnauthenticatedAccess() throws Exception {
         // Verify the API rejects requests without a valid token
         String baseUrl = dotenv.get("API_BASE_URL");

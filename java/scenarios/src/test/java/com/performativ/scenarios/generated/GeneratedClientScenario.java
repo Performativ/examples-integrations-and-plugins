@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.performativ.client.core.ApiClient;
 import com.performativ.scenarios.BaseScenario;
 
+import java.util.UUID;
+
 /**
  * Base class for scenarios that use the OpenAPI-generated typed client.
  *
@@ -47,5 +49,10 @@ public abstract class GeneratedClientScenario extends BaseScenario {
         om.enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES);
 
         return apiClient;
+    }
+
+    /** Generate a random UUID for the {@code Idempotency-Key} header required by v1 POST mutations. */
+    protected static String idempotencyKey() {
+        return UUID.randomUUID().toString();
     }
 }

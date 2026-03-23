@@ -172,7 +172,7 @@ PORTFOLIO=$(curl -s -X POST "${API}/api/v1/portfolios" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"name\":\"Curl-S4 Portfolio\",\"client_id\":${CLIENT_ID},\"currency_id\":47}")
+    -d "{\"name\":\"Curl-S4 Portfolio\",\"client_ids\":[${CLIENT_ID}],\"currency_id\":47}")
 
 PORTFOLIO_ID=$(extract_id "$PORTFOLIO")
 echo "Created Portfolio ID: ${PORTFOLIO_ID}"
@@ -183,7 +183,7 @@ CASH_ACCOUNT=$(curl -s -X POST "${API}/api/v1/cash-accounts" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"name\":\"Curl-S4 Cash Account\",\"client_id\":${CLIENT_ID},\"currency_id\":47}")
+    -d "{\"name\":\"Curl-S4 Cash Account\",\"client_ids\":[${CLIENT_ID}],\"currency_id\":47}")
 
 CASH_ACCOUNT_ID=$(extract_id "$CASH_ACCOUNT")
 echo "Created Cash Account ID: ${CASH_ACCOUNT_ID}"
@@ -205,7 +205,7 @@ EXT_POS=$(curl -s -X POST "${API}/api/v1/external-positions" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"client_id\":${CLIENT_ID},\"portfolio_id\":${PORTFOLIO_ID},\"instrument_isin\":\"US0378331005\",\"instrument_name\":\"Apple Inc.\",\"quantity\":100,\"currency_id\":47,\"date\":\"$(date -u +%Y-%m-%d)\"}")
+    -d "{\"portfolio_id\":${PORTFOLIO_ID},\"instrument_isin\":\"US0378331005\",\"instrument_name\":\"Apple Inc.\",\"quantity\":100,\"currency_id\":47,\"date\":\"$(date -u +%Y-%m-%d)\"}")
 
 EXTERNAL_POSITION_ID=$(extract_id "$EXT_POS")
 echo "Created External Position ID: ${EXTERNAL_POSITION_ID}"
@@ -216,7 +216,7 @@ EXT_BAL=$(curl -s -X POST "${API}/api/v1/external-balances" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"client_id\":${CLIENT_ID},\"cash_account_id\":${CASH_ACCOUNT_ID},\"balance\":50000.00,\"currency_id\":47,\"date\":\"$(date -u +%Y-%m-%d)\"}")
+    -d "{\"cash_account_id\":${CASH_ACCOUNT_ID},\"balance\":50000.00,\"currency_id\":47,\"date\":\"$(date -u +%Y-%m-%d)\"}")
 
 EXTERNAL_BALANCE_ID=$(extract_id "$EXT_BAL")
 echo "Created External Balance ID: ${EXTERNAL_BALANCE_ID}"
@@ -245,7 +245,7 @@ UPDATE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "${API}/api/v1/ext
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
-    -d "{\"client_id\":${CLIENT_ID},\"portfolio_id\":${PORTFOLIO_ID},\"instrument_isin\":\"US0378331005\",\"instrument_name\":\"Apple Inc.\",\"quantity\":200,\"currency_id\":47,\"date\":\"$(date -u +%Y-%m-%d)\"}")
+    -d "{\"portfolio_id\":${PORTFOLIO_ID},\"instrument_isin\":\"US0378331005\",\"instrument_name\":\"Apple Inc.\",\"quantity\":200,\"currency_id\":47,\"date\":\"$(date -u +%Y-%m-%d)\"}")
 echo "HTTP ${UPDATE_STATUS}"
 assert_status "$UPDATE_STATUS" "200" "Update External Position"
 

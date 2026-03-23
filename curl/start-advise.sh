@@ -25,10 +25,36 @@ load_env "$SCRIPT_DIR"
 PERSON_ID=""
 CLIENT_ID=""
 PORTFOLIO_ID=""
+SESSION_ID=""
+AGREEMENT_ID=""
+ENVELOPE_ID=""
+CONTEXT_ID=""
 
 cleanup() {
     echo ""
     echo "=== Cleanup ==="
+    # Delete session (signed status is deletable)
+    if [ -n "$SESSION_ID" ]; then
+        echo "Deleting Session ${SESSION_ID}..."
+        curl -s -X DELETE "${API}/api/v1/advice-sessions/${SESSION_ID}" \
+            -H "Authorization: Bearer ${TOKEN}" -o /dev/null -w "HTTP %{http_code}\n" || true
+    fi
+    # Expire then delete agreement (signed → expired → deletable)
+    if [ -n "$AGREEMENT_ID" ]; then
+        echo "Expiring Agreement ${AGREEMENT_ID}..."
+        curl -s -X POST "${API}/api/v1/advice-agreements/${AGREEMENT_ID}/expire" \
+            -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
+            -H "Idempotency-Key: $(uuidgen)" -d '{}' -o /dev/null -w "HTTP %{http_code}\n" || true
+        echo "Deleting Agreement ${AGREEMENT_ID}..."
+        curl -s -X DELETE "${API}/api/v1/advice-agreements/${AGREEMENT_ID}" \
+            -H "Authorization: Bearer ${TOKEN}" -o /dev/null -w "HTTP %{http_code}\n" || true
+    fi
+    # Delete advice context (agreement delete cascade-deletes the envelope)
+    if [ -n "$CONTEXT_ID" ]; then
+        echo "Deleting Advice Context ${CONTEXT_ID}..."
+        curl -s -X DELETE "${API}/api/v1/advice-contexts/${CONTEXT_ID}" \
+            -H "Authorization: Bearer ${TOKEN}" -o /dev/null -w "HTTP %{http_code}\n" || true
+    fi
     if [ -n "$PORTFOLIO_ID" ]; then
         echo "Deleting Portfolio ${PORTFOLIO_ID}..."
         curl -s -X DELETE "${API}/api/v1/portfolios/${PORTFOLIO_ID}" \
@@ -100,7 +126,7 @@ PORTFOLIO=$(curl -s -X POST "${API}/api/v1/portfolios" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"name\":\"Curl-S8 Portfolio\",\"client_id\":${CLIENT_ID},\"currency_id\":47}")
+    -d "{\"name\":\"Curl-S8 Portfolio\",\"client_ids\":[${CLIENT_ID}],\"currency_id\":47}")
 
 PORTFOLIO_ID=$(echo "$PORTFOLIO" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Created Portfolio ID: ${PORTFOLIO_ID}"
@@ -344,16 +370,5 @@ FINAL=$(curl -s "${API}/api/v1/advice-sessions/${SESSION_ID}" \
 echo "  status: $(echo "$FINAL" | python3 -c "import sys,json; d=json.load(sys.stdin)['data']; print(f\"{d['status']} (signed_at={d.get('signed_at','N/A')})\")")"
 
 echo ""
-echo "=== 25. Close Advice Context ==="
-CLOSE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1/advice-contexts/${CONTEXT_ID}/close" \
-    -H "Authorization: Bearer ${TOKEN}" \
-    -H "Content-Type: application/json" \
-    -H "Accept: application/json" \
-    -H "Idempotency-Key: $(uuidgen)" \
-    -d '{"reason":"Scenario complete"}')
-echo "HTTP ${CLOSE_STATUS}"
-if [ "$CLOSE_STATUS" != "200" ]; then echo "ERROR: Expected 200, got ${CLOSE_STATUS}"; exit 1; fi
-
-echo ""
-echo "=== 26-28. Delete (handled by cleanup trap) ==="
+echo "=== 25-31. Delete (handled by cleanup trap) ==="
 echo "Done. Full advice session lifecycle complete: created → data_ready → active → ready_to_sign → signed."

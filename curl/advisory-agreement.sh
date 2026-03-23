@@ -17,10 +17,8 @@
 #   Signed doc + mark party (16-18) → Progress: complete (19) →
 #   Mark agreement signed (20) → Verify (21) → Close (22)
 #
-# Cleanup: Client and Person are NOT deleted. Once an advice context
-# references these entities, they cannot be removed via the API
-# (FK constraint, backend #6183). Prefixed names (Curl-S7) make
-# orphans identifiable.
+# Cleanup: expire agreement → delete agreement (cascade-deletes
+# envelope) → delete advice context → delete client → delete person.
 #
 # Usage:
 #   cp .env.example .env   # fill in credentials
@@ -335,18 +333,38 @@ FINAL_STATUS=$(echo "$FINAL" | python3 -c "import sys,json; print(json.load(sys.
 echo "Agreement status: ${FINAL_STATUS}"
 
 echo ""
-echo "=== 22. Close Advice Context ==="
-CLOSE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1/advice-contexts/${CONTEXT_ID}/close" \
+echo "=== 22. Expire Agreement ==="
+EXPIRE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1/advice-agreements/${AGREEMENT_ID}/expire" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
-    -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d '{"reason":"Scenario complete"}')
-echo "HTTP ${CLOSE_STATUS}"
-if [ "$CLOSE_STATUS" != "200" ]; then echo "ERROR: Expected 200, got ${CLOSE_STATUS}"; exit 1; fi
+    -d '{}')
+echo "HTTP ${EXPIRE_STATUS}"
+if [ "$EXPIRE_STATUS" != "200" ]; then echo "ERROR: Expected 200, got ${EXPIRE_STATUS}"; exit 1; fi
+
+echo ""
+echo "=== 23. Delete Agreement ==="
+DEL_AGREE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "${API}/api/v1/advice-agreements/${AGREEMENT_ID}" \
+    -H "Authorization: Bearer ${TOKEN}")
+echo "HTTP ${DEL_AGREE}"
+
+echo ""
+echo "=== 24. Delete Advice Context ==="
+DEL_CTX=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "${API}/api/v1/advice-contexts/${CONTEXT_ID}" \
+    -H "Authorization: Bearer ${TOKEN}")
+echo "HTTP ${DEL_CTX}"
+
+echo ""
+echo "=== 25. Delete Client ==="
+DEL_CLIENT=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "${API}/api/v1/clients/${CLIENT_ID}" \
+    -H "Authorization: Bearer ${TOKEN}")
+echo "HTTP ${DEL_CLIENT}"
+
+echo ""
+echo "=== 26. Delete Person ==="
+DEL_PERSON=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "${API}/api/v1/persons/${PERSON_ID}" \
+    -H "Authorization: Bearer ${TOKEN}")
+echo "HTTP ${DEL_PERSON}"
 
 echo ""
 echo "Done. Advisory agreement signing journey complete (plugin perspective)."
-# Cleanup note: Client and Person are intentionally NOT deleted.
-# Once an advice context references these entities, they cannot be
-# removed via the API (FK constraint, backend #6183).

@@ -110,7 +110,7 @@ class StartAdviseScenario extends BaseScenario {
 
         JsonNode portfolio = createEntity(token, "/api/v1/portfolios",
                 String.format("""
-                {"name":"Manual-S8 Portfolio","client_id":%d,"currency_id":47}
+                {"name":"Manual-S8 Portfolio","client_ids":[%d],"currency_id":47}
                 """, clientId));
 
         portfolioId = portfolio.get("id").asInt();
@@ -457,35 +457,81 @@ class StartAdviseScenario extends BaseScenario {
                 "signed_at should be populated");
     }
 
+    // -- Teardown: delete session → expire+delete agreement → delete context → entities --
+
     @Test
     @Order(TEARDOWN + 1)
-    void closeAdviceContext() throws Exception {
-        assertTrue(adviceContextId > 0, "Advice context must be created first");
+    void deleteSession() throws Exception {
+        assertTrue(sessionId > 0, "Session must be created first");
 
-        // In v1, idempotency_key moved from body to header (handled by apiPost).
-        HttpResponse<String> response = apiPost(token,
-                "/api/v1/advice-contexts/" + adviceContextId + "/close",
-                """
-                {"reason":"Scenario complete"}
-                """);
-
+        HttpResponse<String> response = apiDelete(token, "/api/v1/advice-sessions/" + sessionId);
         assertTrue(response.statusCode() < 300,
-                "Close advice context should succeed, got: " + response.statusCode() + " " + response.body());
+                "Delete session should succeed, got: " + response.statusCode());
+        sessionId = 0;
     }
-
-    // -- Teardown --------------------------------------------------------------
-    // Portfolio can be deleted normally. Client and Person cannot be deleted
-    // while referenced by the advice context (FK constraint), so their cleanup
-    // is best-effort via @AfterAll.
 
     @Test
     @Order(TEARDOWN + 2)
+    void expireAgreement() throws Exception {
+        assertTrue(agreementId > 0, "Agreement must be created first");
+
+        HttpResponse<String> response = apiPost(token,
+                "/api/v1/advice-agreements/" + agreementId + "/expire", "{}");
+        assertTrue(response.statusCode() < 300,
+                "Expire agreement should succeed, got: " + response.statusCode() + " " + response.body());
+    }
+
+    @Test
+    @Order(TEARDOWN + 3)
+    void deleteAgreement() throws Exception {
+        assertTrue(agreementId > 0, "Agreement must be created first");
+
+        HttpResponse<String> response = apiDelete(token, "/api/v1/advice-agreements/" + agreementId);
+        assertTrue(response.statusCode() < 300,
+                "Delete agreement should succeed, got: " + response.statusCode());
+        agreementId = 0;
+    }
+
+    @Test
+    @Order(TEARDOWN + 4)
+    void deleteAdviceContext() throws Exception {
+        assertTrue(adviceContextId > 0, "Advice context must be created first");
+
+        HttpResponse<String> response = apiDelete(token, "/api/v1/advice-contexts/" + adviceContextId);
+        assertTrue(response.statusCode() < 300,
+                "Delete advice context should succeed, got: " + response.statusCode());
+        adviceContextId = 0;
+    }
+
+    @Test
+    @Order(TEARDOWN + 5)
     void deletePortfolio() throws Exception {
         assertTrue(portfolioId > 0, "Portfolio must be created first");
         HttpResponse<String> response = apiDelete(token, "/api/v1/portfolios/" + portfolioId);
-        assertTrue(response.statusCode() < 300 || response.statusCode() == 404,
-                "Delete should succeed, got: " + response.statusCode());
+        assertTrue(response.statusCode() < 300,
+                "Delete portfolio should succeed, got: " + response.statusCode());
         portfolioId = 0;
+    }
+
+    @Test
+    @Order(TEARDOWN + 6)
+    void deleteClient() throws Exception {
+        assertTrue(clientId > 0, "Client must be created first");
+        HttpResponse<String> response = apiDelete(token, "/api/v1/clients/" + clientId);
+        assertTrue(response.statusCode() < 300,
+                "Delete client should succeed, got: " + response.statusCode());
+        clientId = 0;
+    }
+
+    @Test
+    @Order(TEARDOWN + 7)
+    void deletePerson() throws Exception {
+        assertTrue(personId > 0, "Person must be created first");
+        HttpResponse<String> response = apiDelete(token, "/api/v1/persons/" + personId);
+        // Person may already be cascade-deleted with the client
+        assertTrue(response.statusCode() < 300 || response.statusCode() == 404,
+                "Delete person should succeed, got: " + response.statusCode());
+        personId = 0;
     }
 
     @AfterAll

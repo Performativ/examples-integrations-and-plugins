@@ -143,7 +143,7 @@ Ordering: the signed document must be added to the envelope **before** marking t
 
 Agreement state machine: `draft` → `pending_signature` (via `submit-signing`) → `signed` (via `mark-signed` with `signed_document_id`).
 
-Cleanup: Client and Person are **not** deleted. Once an advice context references these entities, they cannot be removed via the API (FK constraint, backend #6183). Prefixed test-data names (`Curl-S6`, `Manual-S6`, `Gen-S6`) make orphans identifiable.
+Cleanup: expire agreement → delete agreement (cascade-deletes envelope) → delete advice context → delete client → delete person. Person may already be cascade-deleted with the client (404 is expected).
 
 Signing envelope: the envelope groups documents and signer parties. Source documents are uploaded via multipart POST to `/api/v1/documents`, then added to the envelope with role `source`. Signed documents are added with role `signed`. Parties reference a person with role `signer`. The envelope must be sent before the agreement can transition.
 
@@ -178,14 +178,19 @@ A signed advisory agreement is **required** before a session can be created. Thi
 | Mark Ready to Sign | POST | `/api/v1/advice-sessions/{id}/mark-ready-to-sign` | 200, status becomes `ready_to_sign` |
 | Mark Session Signed | POST | `/api/v1/advice-sessions/{id}/mark-signed` | 200, status becomes `signed` |
 | Read Session (final) | GET | `/api/v1/advice-sessions/{id}` | 200, status `signed` |
-| Close Advice Context | POST | `/api/v1/advice-contexts/{id}/close` | 200 |
+| Delete Session | DELETE | `/api/v1/advice-sessions/{id}` | 200 or 204 |
+| Expire Agreement | POST | `/api/v1/advice-agreements/{id}/expire` | 200, status becomes `expired` |
+| Delete Agreement | DELETE | `/api/v1/advice-agreements/{id}` | 200 or 204 (cascade-deletes envelope) |
+| Delete Advice Context | DELETE | `/api/v1/advice-contexts/{id}` | 200 or 204 |
 | Delete Portfolio | DELETE | `/api/v1/portfolios/{id}` | 200 or 204 |
+| Delete Client | DELETE | `/api/v1/clients/{id}` | 200 or 204 |
+| Delete Person | DELETE | `/api/v1/persons/{id}` | 200 or 204 (may 404 if cascade-deleted with client) |
 
 Advisory agreement prerequisite: a signed agreement is required before creating a session. The agreement follows the same signing flow as S7 — document upload, signing envelope with signer party, submit-signing, mark-signed.
 
 Advice session state machine: `created` → `data_ready` (plugin signals external data is loaded) → `active` (session activated with redirect URL for the advisor UI) → `ready_to_sign` (advice proposal is ready) → `signed` (client has signed). A session can be `abandoned` from any pre-signed state.
 
-Cleanup: Portfolio can be deleted normally. Client and Person remain after the scenario completes — once an advice context references these entities, they cannot be deleted via the API (FK constraint). Best-effort cleanup is attempted in `@AfterAll` / `trap EXIT`.
+Cleanup: delete session → expire agreement → delete agreement (cascade-deletes envelope) → delete advice context → delete portfolio → delete client → delete person. Person may already be cascade-deleted with the client (404 is expected).
 
 ## S9: Error Responses
 

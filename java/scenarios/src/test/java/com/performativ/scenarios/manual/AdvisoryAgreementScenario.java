@@ -22,9 +22,8 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * <p>Uses raw HTTP throughout.
  *
- * <p>Cleanup: Client and Person are <b>not</b> deleted. Once an advice context
- * references these entities, they cannot be removed via the API (FK constraint,
- * backend #6183). Prefixed names ({@code Manual-S7}) make orphans identifiable.
+ * <p>Cleanup: expire agreement → delete agreement (cascade-deletes envelope) →
+ * delete advice context → delete client → delete person.
  *
  * @see <a href="../../../../../../../../../SCENARIOS.md">SCENARIOS.md</a>
  */
@@ -446,22 +445,64 @@ class AdvisoryAgreementScenario extends BaseScenario {
                 "Agreement should be in signed status");
     }
 
+    // ─── Teardown: expire agreement → delete agreement → delete context → delete client/person ──
+
     @Test
-    @Order(22)
-    void closeAdviceContext() throws Exception {
-        assertTrue(adviceContextId > 0, "Advice context must be created first");
+    @Order(TEARDOWN + 1)
+    void expireAgreement() throws Exception {
+        assertTrue(agreementId > 0, "Agreement must be created first");
 
         HttpResponse<String> response = apiPost(token,
-                "/api/v1/advice-contexts/" + adviceContextId + "/close",
-                """
-                {"reason":"Scenario complete"}
-                """);
-
+                "/api/v1/advice-agreements/" + agreementId + "/expire", "{}");
         assertTrue(response.statusCode() < 300,
-                "Close advice context should succeed, got: " + response.statusCode() + " " + response.body());
+                "Expire agreement should succeed, got: " + response.statusCode() + " " + response.body());
     }
 
-    // No @AfterAll teardown. Client and Person cannot be deleted while
-    // referenced by the advice context (FK constraint, backend #6183).
-    // Prefixed names (Manual-S7) make orphans identifiable.
+    @Test
+    @Order(TEARDOWN + 2)
+    void deleteAgreement() throws Exception {
+        assertTrue(agreementId > 0, "Agreement must be created first");
+
+        HttpResponse<String> response = apiDelete(token, "/api/v1/advice-agreements/" + agreementId);
+        assertTrue(response.statusCode() < 300,
+                "Delete agreement should succeed, got: " + response.statusCode());
+        agreementId = 0;
+    }
+
+    @Test
+    @Order(TEARDOWN + 3)
+    void deleteAdviceContext() throws Exception {
+        assertTrue(adviceContextId > 0, "Advice context must be created first");
+
+        HttpResponse<String> response = apiDelete(token, "/api/v1/advice-contexts/" + adviceContextId);
+        assertTrue(response.statusCode() < 300,
+                "Delete advice context should succeed, got: " + response.statusCode());
+        adviceContextId = 0;
+    }
+
+    @Test
+    @Order(TEARDOWN + 4)
+    void deleteClient() throws Exception {
+        assertTrue(clientId > 0, "Client must be created first");
+        HttpResponse<String> response = apiDelete(token, "/api/v1/clients/" + clientId);
+        assertTrue(response.statusCode() < 300,
+                "Delete client should succeed, got: " + response.statusCode());
+        clientId = 0;
+    }
+
+    @Test
+    @Order(TEARDOWN + 5)
+    void deletePerson() throws Exception {
+        assertTrue(personId > 0, "Person must be created first");
+        HttpResponse<String> response = apiDelete(token, "/api/v1/persons/" + personId);
+        // Person may already be cascade-deleted with the client
+        assertTrue(response.statusCode() < 300 || response.statusCode() == 404,
+                "Delete person should succeed, got: " + response.statusCode());
+        personId = 0;
+    }
+
+    @AfterAll
+    static void teardown() {
+        runCleanup();
+    }
 }

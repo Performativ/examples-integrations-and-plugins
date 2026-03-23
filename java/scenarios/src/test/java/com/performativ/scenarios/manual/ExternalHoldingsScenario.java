@@ -149,7 +149,7 @@ class ExternalHoldingsScenario extends BaseScenario {
 
         JsonNode portfolio = createEntity(token, "/api/v1/portfolios",
                 String.format("""
-                {"name":"Manual-S4 Portfolio","client_id":%d,"currency_id":47}
+                {"name":"Manual-S4 Portfolio","client_ids":[%d],"currency_id":47}
                 """, clientId));
 
         portfolioId = portfolio.get("id").asInt();
@@ -164,7 +164,7 @@ class ExternalHoldingsScenario extends BaseScenario {
 
         JsonNode cashAccount = createEntity(token, "/api/v1/cash-accounts",
                 String.format("""
-                {"name":"Manual-S4 Cash Account","client_id":%d,"currency_id":47}
+                {"name":"Manual-S4 Cash Account","client_ids":[%d],"currency_id":47}
                 """, clientId));
 
         cashAccountId = cashAccount.get("id").asInt();
@@ -196,8 +196,8 @@ class ExternalHoldingsScenario extends BaseScenario {
 
         JsonNode extPos = createEntity(token, "/api/v1/external-positions",
                 String.format("""
-                {"client_id":%d,"portfolio_id":%d,"instrument_isin":"US0378331005","instrument_name":"Apple Inc.","quantity":100,"currency_id":47,"date":"%s"}
-                """, clientId, portfolioId, LocalDate.now().toString()));
+                {"portfolio_id":%d,"instrument_isin":"US0378331005","instrument_name":"Apple Inc.","quantity":100,"currency_id":47,"date":"%s"}
+                """, portfolioId, LocalDate.now().toString()));
 
         externalPositionId = extPos.get("id").asInt();
         assertTrue(externalPositionId > 0, "External Position ID should be positive");
@@ -212,8 +212,8 @@ class ExternalHoldingsScenario extends BaseScenario {
 
         JsonNode extBal = createEntity(token, "/api/v1/external-balances",
                 String.format("""
-                {"client_id":%d,"cash_account_id":%d,"balance":50000.00,"currency_id":47,"date":"%s"}
-                """, clientId, cashAccountId, LocalDate.now().toString()));
+                {"cash_account_id":%d,"balance":50000.00,"currency_id":47,"date":"%s"}
+                """, cashAccountId, LocalDate.now().toString()));
 
         externalBalanceId = extBal.get("id").asInt();
         assertTrue(externalBalanceId > 0, "External Balance ID should be positive");
@@ -268,8 +268,8 @@ class ExternalHoldingsScenario extends BaseScenario {
 
         HttpResponse<String> response = apiPut(token, "/api/v1/external-positions/" + externalPositionId,
                 String.format("""
-                {"client_id":%d,"portfolio_id":%d,"instrument_isin":"US0378331005","instrument_name":"Apple Inc.","quantity":200,"currency_id":47,"date":"%s"}
-                """, clientId, portfolioId, LocalDate.now().toString()));
+                {"portfolio_id":%d,"instrument_isin":"US0378331005","instrument_name":"Apple Inc.","quantity":200,"currency_id":47,"date":"%s"}
+                """, portfolioId, LocalDate.now().toString()));
 
         assertTrue(response.statusCode() < 300,
                 "Update should succeed, got: " + response.statusCode() + " " + response.body());

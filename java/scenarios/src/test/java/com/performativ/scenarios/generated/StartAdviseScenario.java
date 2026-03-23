@@ -31,26 +31,21 @@ class StartAdviseScenario extends GeneratedClientScenario {
 
     private static String token;
     private static ApiClient apiClient;
-    private static AdvicePoliciesApi advicePolicyApi;
-    private static PersonApi personApi;
-    private static ClientApi clientApi;
-    private static ClientPersonApi clientPersonApi;
-    private static PortfolioApi portfolioApi;
-    private static AdviceContextsApi adviceContextApi;
-    private static AdvisoryAgreementsApi advisoryAgreementApi;
-    private static SigningEnvelopesApi signingEnvelopeApi;
-    private static AdviceSessionsApi adviceSessionApi;
+    private static AdviceApi adviceApi;
+    private static PersonsApi personsApi;
+    private static ClientsApi clientsApi;
+    private static PortfoliosApi portfoliosApi;
 
-    private static int advicePolicyId;
-    private static int personId;
-    private static int clientId;
-    private static int portfolioId;
-    private static int documentId;
-    private static int envelopeId;
-    private static int adviceContextId;
-    private static int agreementId;
-    private static int signedDocId;
-    private static int sessionId;
+    private static long advicePolicyId;
+    private static long personId;
+    private static long clientId;
+    private static long portfolioId;
+    private static long documentId;
+    private static long envelopeId;
+    private static long adviceContextId;
+    private static long agreementId;
+    private static long signedDocId;
+    private static long sessionId;
 
     @BeforeAll
     static void setup() throws Exception {
@@ -58,15 +53,10 @@ class StartAdviseScenario extends GeneratedClientScenario {
         token = acquireToken();
 
         apiClient = createApiClient(token);
-        advicePolicyApi = new AdvicePoliciesApi(apiClient);
-        personApi = new PersonApi(apiClient);
-        clientApi = new ClientApi(apiClient);
-        clientPersonApi = new ClientPersonApi(apiClient);
-        portfolioApi = new PortfolioApi(apiClient);
-        signingEnvelopeApi = new SigningEnvelopesApi(apiClient);
-        adviceContextApi = new AdviceContextsApi(apiClient);
-        advisoryAgreementApi = new AdvisoryAgreementsApi(apiClient);
-        adviceSessionApi = new AdviceSessionsApi(apiClient);
+        adviceApi = new AdviceApi(apiClient);
+        personsApi = new PersonsApi(apiClient);
+        clientsApi = new ClientsApi(apiClient);
+        portfoliosApi = new PortfoliosApi(apiClient);
     }
 
     // -- Prerequisites --------------------------------------------------------
@@ -74,7 +64,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
     @Test
     @Order(SETUP + 1)
     void listAdvicePolicies() throws ApiException {
-        var response = advicePolicyApi.advicePoliciesIndex(null, null, null, null);
+        var response = adviceApi.advicePoliciesIndex(null, null, null, null);
         assertNotNull(response);
         assertNotNull(response.getData());
         assertFalse(response.getData().isEmpty(),
@@ -93,7 +83,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
                 .email("gen-s8@example.com")
                 .languageCode("en");
 
-        var response = personApi.personsStore(req, idempotencyKey());
+        var response = personsApi.personsStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -109,9 +99,9 @@ class StartAdviseScenario extends GeneratedClientScenario {
                 .name("Gen-S8 Client")
                 .type(StoreClientRequest.TypeEnum.INDIVIDUAL)
                 .isActive(true)
-                .currencyId(47);
+                .currencyId(47L);
 
-        var response = clientApi.clientsStore(req, idempotencyKey());
+        var response = clientsApi.clientsStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -131,7 +121,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
                 .personId(personId)
                 .isPrimary(true);
 
-        clientPersonApi.clientPersonsStore(req, idempotencyKey());
+        clientsApi.clientPersonsStore(req, idempotencyKey());
     }
 
     @Test
@@ -141,10 +131,10 @@ class StartAdviseScenario extends GeneratedClientScenario {
 
         var req = new StorePortfolioRequest()
                 .name("Gen-S8 Portfolio")
-                .clientId(clientId)
-                .currencyId(47);
+                .addClientIdsItem(clientId)
+                .currencyId(47L);
 
-        var response = portfolioApi.portfoliosStore(req, idempotencyKey());
+        var response = portfoliosApi.portfoliosStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -171,7 +161,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
                     "Document upload should succeed, got: " + response.statusCode() + " " + response.body());
 
             JsonNode data = objectMapper.readTree(response.body()).path("data");
-            documentId = data.get("id").asInt();
+            documentId = data.get("id").asLong();
             assertTrue(documentId > 0, "Document ID should be positive");
         } finally {
             Files.deleteIfExists(tempFile);
@@ -184,7 +174,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
         var req = new StoreSigningEnvelopeRequest()
                 .title("Gen-S8 Agreement Envelope");
 
-        var response = signingEnvelopeApi.signingEnvelopesStore(idempotencyKey(), req);
+        var response = adviceApi.signingEnvelopesStore(idempotencyKey(), req);
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -202,7 +192,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
                 .documentId(documentId)
                 .role(AddDocumentToEnvelopeRequest.RoleEnum.SOURCE);
 
-        signingEnvelopeApi.signingEnvelopesDocumentsStore(
+        adviceApi.signingEnvelopesDocumentsStore(
                 String.valueOf(envelopeId), req, idempotencyKey());
     }
 
@@ -216,7 +206,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
                 .personId(personId)
                 .role(AddPartyToEnvelopeRequest.RoleEnum.SIGNER);
 
-        signingEnvelopeApi.signingEnvelopesPartiesStore(
+        adviceApi.signingEnvelopesPartiesStore(
                 String.valueOf(envelopeId), req, idempotencyKey());
     }
 
@@ -225,7 +215,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
     void sendEnvelope() throws ApiException {
         assertTrue(envelopeId > 0, "Envelope must be created first");
 
-        signingEnvelopeApi.signingEnvelopeActionSend(
+        adviceApi.signingEnvelopeActionSend(
                 String.valueOf(envelopeId), idempotencyKey());
     }
 
@@ -249,7 +239,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
                 "Create advice context should succeed, got: " + response.statusCode() + " " + response.body());
 
         JsonNode data = objectMapper.readTree(response.body()).path("data");
-        adviceContextId = data.get("id").asInt();
+        adviceContextId = data.get("id").asLong();
         assertTrue(adviceContextId > 0);
         assertEquals("active", data.get("status").asText());
     }
@@ -267,7 +257,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
                 .signingEnvelopeId(envelopeId)
                 .externalReference("gen-s8-agreement");
 
-        var response = advisoryAgreementApi.v1AdviceAgreementsStoreForContext(
+        var response = adviceApi.v1AdviceAgreementsStoreForContext(
                 String.valueOf(adviceContextId), idempotencyKey(), req);
         assertNotNull(response);
         assertNotNull(response.getData());
@@ -286,7 +276,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
         // submit-signing body no longer has document_id — only signing_envelope_id (optional).
         var req = new SubmitSigningAdvisoryAgreementRequest();
 
-        advisoryAgreementApi.advisoryAgreementActionSubmitSigning(
+        adviceApi.advisoryAgreementActionSubmitSigning(
                 String.valueOf(agreementId), idempotencyKey(), req);
     }
 
@@ -302,7 +292,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
         try {
             HttpResponse<String> docResp = apiPostMultipart(token, "/api/v1/documents",
                     tempFile, "file", Map.of("type", "advisory_agreement"));
-            signedDocId = objectMapper.readTree(docResp.body()).path("data").get("id").asInt();
+            signedDocId = objectMapper.readTree(docResp.body()).path("data").get("id").asLong();
             assertTrue(signedDocId > 0, "Signed document ID should be positive");
         } finally {
             Files.deleteIfExists(tempFile);
@@ -315,7 +305,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
                 .documentId(signedDocId)
                 .role(AddDocumentToEnvelopeRequest.RoleEnum.SIGNED);
 
-        signingEnvelopeApi.signingEnvelopesDocumentsStore(
+        adviceApi.signingEnvelopesDocumentsStore(
                 String.valueOf(envelopeId), req, idempotencyKey());
     }
 
@@ -325,14 +315,14 @@ class StartAdviseScenario extends GeneratedClientScenario {
         assertTrue(envelopeId > 0, "Envelope must be created first");
 
         // Get party ID from the envelope
-        var envelope = signingEnvelopeApi.signingEnvelopesShow(
+        var envelope = adviceApi.signingEnvelopesShow(
                 String.valueOf(envelopeId));
         assertNotNull(envelope.getData().getParties());
         assertFalse(envelope.getData().getParties().isEmpty(),
                 "Envelope should have at least one party");
-        int partyId = envelope.getData().getParties().get(0).getId();
+        long partyId = envelope.getData().getParties().get(0).getId();
 
-        signingEnvelopeApi.signingEnvelopePartyActionMarkSigned(
+        adviceApi.signingEnvelopePartyActionMarkSigned(
                 String.valueOf(envelopeId), String.valueOf(partyId), idempotencyKey());
     }
 
@@ -345,7 +335,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
         var req = new MarkSignedAdvisoryAgreementRequest()
                 .signedDocumentId(signedDocId);
 
-        advisoryAgreementApi.advisoryAgreementActionMarkSigned(
+        adviceApi.advisoryAgreementActionMarkSigned(
                 String.valueOf(agreementId), idempotencyKey(), req);
     }
 
@@ -360,7 +350,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
                 .externalSessionId("gen-s8-session")
                 .externalReference("gen-s8");
 
-        var response = adviceSessionApi.v1AdviceSessionsStoreForContext(
+        var response = adviceApi.v1AdviceSessionsStoreForContext(
                 String.valueOf(adviceContextId), idempotencyKey(), req);
         assertNotNull(response);
         assertNotNull(response.getData());
@@ -376,7 +366,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
     void readAdviceSession() throws ApiException {
         assertTrue(sessionId > 0, "Session must be created first");
 
-        var response = adviceSessionApi.v1AdviceSessionsShow(
+        var response = adviceApi.v1AdviceSessionsShow(
                 String.valueOf(sessionId), null);
         assertNotNull(response);
         assertEquals(sessionId, response.getData().getId());
@@ -390,7 +380,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
 
         var req = new MarkDataReadyAdviceSessionRequest();
 
-        var response = adviceSessionApi.adviceSessionActionMarkDataReady(
+        var response = adviceApi.adviceSessionActionMarkDataReady(
                 String.valueOf(sessionId), idempotencyKey(), req);
         assertNotNull(response);
         assertEquals("data_ready", response.getData().getStatus().getValue(),
@@ -405,7 +395,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
         var req = new ActivateAdviceSessionRequest()
                 .redirectUrl("https://example.com/advisor-ui/session");
 
-        var response = adviceSessionApi.adviceSessionActionActivate(
+        var response = adviceApi.adviceSessionActionActivate(
                 String.valueOf(sessionId), idempotencyKey(), req);
         assertNotNull(response);
         assertEquals("active", response.getData().getStatus().getValue(),
@@ -419,7 +409,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
 
         var req = new MarkReadyToSignAdviceSessionRequest();
 
-        var response = adviceSessionApi.adviceSessionActionMarkReadyToSign(
+        var response = adviceApi.adviceSessionActionMarkReadyToSign(
                 String.valueOf(sessionId), idempotencyKey(), req);
         assertNotNull(response);
         assertEquals("ready_to_sign", response.getData().getStatus().getValue(),
@@ -433,7 +423,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
 
         var req = new MarkSignedAdviceSessionRequest();
 
-        var response = adviceSessionApi.adviceSessionActionMarkSigned(
+        var response = adviceApi.adviceSessionActionMarkSigned(
                 String.valueOf(sessionId), idempotencyKey(), req);
         assertNotNull(response);
         assertEquals("signed", response.getData().getStatus().getValue(),
@@ -445,36 +435,78 @@ class StartAdviseScenario extends GeneratedClientScenario {
     void readSessionFinal() throws ApiException {
         assertTrue(sessionId > 0, "Session must be created first");
 
-        var response = adviceSessionApi.v1AdviceSessionsShow(
+        var response = adviceApi.v1AdviceSessionsShow(
                 String.valueOf(sessionId), null);
         assertNotNull(response);
         assertEquals("signed", response.getData().getStatus().getValue(),
                 "Final session status should be 'signed'");
     }
 
+    // -- Teardown: delete session → expire+delete agreement → delete context → entities --
+
     @Test
     @Order(TEARDOWN + 1)
-    void closeAdviceContext() throws ApiException {
-        assertTrue(adviceContextId > 0, "Advice context must be created first");
+    void deleteSession() throws ApiException {
+        assertTrue(sessionId > 0, "Session must be created first");
 
-        var req = new CloseAdviceContextRequest()
-                .reason("Scenario complete");
-
-        adviceContextApi.adviceContextActionClose(
-                String.valueOf(adviceContextId), idempotencyKey(), req);
+        adviceApi.v1AdviceSessionsDestroy(String.valueOf(sessionId));
+        sessionId = 0;
     }
-
-    // -- Teardown --------------------------------------------------------------
-    // Portfolio can be deleted normally. Client and Person cannot be deleted
-    // while referenced by the advice context (FK constraint), so their cleanup
-    // is best-effort via @AfterAll.
 
     @Test
     @Order(TEARDOWN + 2)
+    void expireAgreement() throws ApiException {
+        assertTrue(agreementId > 0, "Agreement must be created first");
+
+        adviceApi.advisoryAgreementActionExpire(
+                String.valueOf(agreementId), idempotencyKey(), null);
+    }
+
+    @Test
+    @Order(TEARDOWN + 3)
+    void deleteAgreement() throws ApiException {
+        assertTrue(agreementId > 0, "Agreement must be created first");
+
+        adviceApi.v1AdviceAgreementsDestroy(String.valueOf(agreementId));
+        agreementId = 0;
+    }
+
+    @Test
+    @Order(TEARDOWN + 4)
+    void deleteAdviceContext() throws ApiException {
+        assertTrue(adviceContextId > 0, "Advice context must be created first");
+
+        adviceApi.adviceContextsDestroy(String.valueOf(adviceContextId));
+        adviceContextId = 0;
+    }
+
+    @Test
+    @Order(TEARDOWN + 5)
     void deletePortfolio() throws ApiException {
         assertTrue(portfolioId > 0, "Portfolio must be created first");
-        portfolioApi.portfoliosDestroy(String.valueOf(portfolioId));
+        portfoliosApi.portfoliosDestroy(String.valueOf(portfolioId));
         portfolioId = 0;
+    }
+
+    @Test
+    @Order(TEARDOWN + 6)
+    void deleteClient() throws ApiException {
+        assertTrue(clientId > 0, "Client must be created first");
+        clientsApi.clientsDestroy(String.valueOf(clientId));
+        clientId = 0;
+    }
+
+    @Test
+    @Order(TEARDOWN + 7)
+    void deletePerson() throws ApiException {
+        assertTrue(personId > 0, "Person must be created first");
+        try {
+            personsApi.personsDestroy(String.valueOf(personId));
+        } catch (ApiException e) {
+            // Person may already be cascade-deleted with the client
+            if (e.getCode() != 404) throw e;
+        }
+        personId = 0;
     }
 
     @AfterAll

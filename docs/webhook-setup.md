@@ -29,7 +29,8 @@ Every webhook request includes these headers:
 | `x-tenant` | Yes | Tenant identifier (lowercase) |
 | `x-api-domain` | Yes | API domain for the tenant |
 | `x-tenant-reference-id` | No | Your reference ID (if configured) |
-| `x-webhook-signature` | No | HMAC-SHA256 signature (if signing key is configured) |
+| `x-webhook-timestamp` | Yes (when signing is enabled) | Unix epoch seconds at which the delivery was enqueued. Required for signature verification. |
+| `x-webhook-signature` | Yes (when signing is enabled) | Hex-encoded `HMAC_SHA256(signing_key, "{timestamp}.{raw_body}")` |
 
 ## Payload Structure
 
@@ -63,9 +64,17 @@ All webhook payloads follow this schema:
 
 ### How It Works
 
-1. Performativ computes HMAC-SHA256 of the JSON request body using your signing key
-2. The hex-encoded signature is sent in the `x-webhook-signature` header
-3. Your endpoint recomputes the HMAC and compares it to the header value
+Performativ signs each delivery with HMAC-SHA256 over the delivery timestamp, a literal `.` separator, and the raw JSON request body, in that exact order:
+
+```
+signature = HMAC-SHA256(signing_key, "{x-webhook-timestamp}.{raw_body}")
+```
+
+Both the timestamp and the hex-encoded signature are sent on every delivery, in the `x-webhook-timestamp` and `x-webhook-signature` headers. The receiver recomputes the HMAC using the same inputs and compares it to the header value.
+
+Prepending the timestamp to the signed content is what makes the scheme resistant to **replay attacks**: a receiver that enforces a freshness window rejects any delivery whose timestamp is more than N seconds away from its own clock. A captured `(timestamp, body, signature)` tuple becomes worthless outside that window.
+
+A five-minute freshness window is the recommended default and is what the examples in this repository use. It is tight enough to bound the replay risk and loose enough to tolerate normal clock skew between the sender and the receiver.
 
 ### Java Example
 
@@ -75,24 +84,30 @@ import com.performativ.plugin.SignatureVerifier;
 SignatureVerifier verifier = new SignatureVerifier("your-signing-key");
 
 // In your controller:
-boolean valid = verifier.verify(rawRequestBodyBytes, signatureHeader);
+boolean valid = verifier.verify(rawRequestBodyBytes, timestampHeader, signatureHeader);
 if (!valid) {
     return ResponseEntity.status(401).body("Invalid signature");
 }
 ```
 
+`SignatureVerifier` checks four things in order: the signature header is present, the timestamp header is present and parseable, the timestamp is inside the five-minute freshness window, and the HMAC of `{timestamp}.{raw_body}` matches the header value (via constant-time comparison). If any of those fails, it returns `false`.
+
 ### Manual Verification (Any Language)
 
 ```
-expected = HMAC-SHA256(signing_key, raw_json_body)
-actual   = request.headers["x-webhook-signature"]
-valid    = constant_time_equals(hex(expected), actual)
+if abs(now_epoch_seconds - int(timestamp_header)) > 300:
+    reject                                          # replay window exceeded
+signed_content = timestamp_header + "." + raw_body  # concatenate bytes, no re-serialise
+expected       = HMAC-SHA256(signing_key, signed_content)
+actual         = request.headers["x-webhook-signature"]
+valid          = constant_time_equals(hex(expected), actual)
 ```
 
 Important:
-- Compute the HMAC on the **raw request body bytes**, not on a re-serialized JSON object
-- Use **constant-time comparison** to prevent timing attacks
-- If the `x-webhook-signature` header is absent, the webhook is unsigned (this is valid when no signing key is configured)
+- Read the **raw request body bytes** before any JSON parsing. Re-serialising the body produces a different hash even when semantically equivalent.
+- Use **constant-time comparison** to prevent timing attacks.
+- Enforce the freshness window before computing the HMAC. A delivery with a stale timestamp should be rejected even if the signature would otherwise have matched.
+- If neither `x-webhook-timestamp` nor `x-webhook-signature` is present, the webhook is unsigned (this is valid only when no signing key is configured for the plugin).
 
 ## Idempotency
 

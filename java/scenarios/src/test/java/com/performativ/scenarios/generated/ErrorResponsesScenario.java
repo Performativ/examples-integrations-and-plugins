@@ -1,7 +1,7 @@
 package com.performativ.scenarios.generated;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.performativ.client.api.ClientApi;
+import com.performativ.client.api.ClientsApi;
 import com.performativ.client.core.ApiClient;
 import com.performativ.client.core.ApiException;
 import com.performativ.client.model.StoreClientRequest;
@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ErrorResponsesScenario extends GeneratedClientScenario {
 
     private static String token;
-    private static ClientApi clientApi;
+    private static ClientsApi clientsApi;
 
     @BeforeAll
     static void setup() throws Exception {
@@ -29,14 +29,14 @@ class ErrorResponsesScenario extends GeneratedClientScenario {
         token = acquireToken();
 
         ApiClient apiClient = createApiClient(token);
-        clientApi = new ClientApi(apiClient);
+        clientsApi = new ClientsApi(apiClient);
     }
 
     @Test
     @Order(VERIFY + 1)
     void createClientValidationError() throws Exception {
         ApiException ex = assertThrows(ApiException.class, () ->
-                clientApi.clientsStore(new StoreClientRequest(), idempotencyKey()));
+                clientsApi.clientsStore(new StoreClientRequest(), idempotencyKey()));
         assertEquals(422, ex.getCode(),
                 "Empty client payload should return 422, got: " + ex.getCode());
 
@@ -61,7 +61,7 @@ class ErrorResponsesScenario extends GeneratedClientScenario {
     @Order(VERIFY + 2)
     void readNonExistentClient() throws Exception {
         ApiException ex = assertThrows(ApiException.class, () ->
-                clientApi.clientsShow("0", null));
+                clientsApi.clientsShow("0", null));
         assertEquals(404, ex.getCode(),
                 "Non-existent client should return 404, got: " + ex.getCode());
 

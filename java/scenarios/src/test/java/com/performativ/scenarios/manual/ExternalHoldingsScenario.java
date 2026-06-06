@@ -34,6 +34,7 @@ class ExternalHoldingsScenario extends BaseScenario {
     private static int portfolioCashAccountId;
     private static int externalPositionId;
     private static int externalBalanceId;
+    private static int instrumentId;
 
     @BeforeAll
     static void setup() throws Exception {
@@ -149,7 +150,7 @@ class ExternalHoldingsScenario extends BaseScenario {
 
         JsonNode portfolio = createEntity(token, "/api/v1/portfolios",
                 String.format("""
-                {"name":"Manual-S4 Portfolio","client_id":%d,"currency_id":47}
+                {"name":"Manual-S4 Portfolio","client_ids":[%d],"currency_id":47}
                 """, clientId));
 
         portfolioId = portfolio.get("id").asInt();
@@ -164,7 +165,7 @@ class ExternalHoldingsScenario extends BaseScenario {
 
         JsonNode cashAccount = createEntity(token, "/api/v1/cash-accounts",
                 String.format("""
-                {"name":"Manual-S4 Cash Account","client_id":%d,"currency_id":47}
+                {"name":"Manual-S4 Cash Account","client_ids":[%d],"currency_id":47}
                 """, clientId));
 
         cashAccountId = cashAccount.get("id").asInt();
@@ -194,10 +195,21 @@ class ExternalHoldingsScenario extends BaseScenario {
         assertTrue(clientId > 0, "Client must be created first");
         assertTrue(portfolioId > 0, "Portfolio must be created first");
 
+        // v1 external positions reference a pre-registered Instrument by id.
+        // Instruments are pre-registered (typically via bulk file);
+        // instrument_isin/name are optional audit fields. Reference an existing
+        // instrument from the tenant universe.
+        HttpResponse<String> instruments = apiGet(token, "/api/v1/instruments?per_page=1");
+        JsonNode instrData = objectMapper.readTree(instruments.body()).path("data");
+        assertTrue(instrData.isArray() && instrData.size() > 0,
+                "Tenant must have at least one pre-registered instrument");
+        instrumentId = instrData.get(0).get("id").asInt();
+        assertTrue(instrumentId > 0, "Instrument ID should be positive");
+
         JsonNode extPos = createEntity(token, "/api/v1/external-positions",
                 String.format("""
-                {"client_id":%d,"portfolio_id":%d,"instrument_isin":"US0378331005","instrument_name":"Apple Inc.","quantity":100,"currency_id":47,"date":"%s"}
-                """, clientId, portfolioId, LocalDate.now().toString()));
+                {"portfolio_id":%d,"instrument_id":%d,"quantity":100,"currency_id":47,"date":"%s"}
+                """, portfolioId, instrumentId, LocalDate.now().toString()));
 
         externalPositionId = extPos.get("id").asInt();
         assertTrue(externalPositionId > 0, "External Position ID should be positive");
@@ -212,8 +224,8 @@ class ExternalHoldingsScenario extends BaseScenario {
 
         JsonNode extBal = createEntity(token, "/api/v1/external-balances",
                 String.format("""
-                {"client_id":%d,"cash_account_id":%d,"balance":50000.00,"currency_id":47,"date":"%s"}
-                """, clientId, cashAccountId, LocalDate.now().toString()));
+                {"cash_account_id":%d,"balance":50000.00,"currency_id":47,"date":"%s"}
+                """, cashAccountId, LocalDate.now().toString()));
 
         externalBalanceId = extBal.get("id").asInt();
         assertTrue(externalBalanceId > 0, "External Balance ID should be positive");
@@ -268,8 +280,8 @@ class ExternalHoldingsScenario extends BaseScenario {
 
         HttpResponse<String> response = apiPut(token, "/api/v1/external-positions/" + externalPositionId,
                 String.format("""
-                {"client_id":%d,"portfolio_id":%d,"instrument_isin":"US0378331005","instrument_name":"Apple Inc.","quantity":200,"currency_id":47,"date":"%s"}
-                """, clientId, portfolioId, LocalDate.now().toString()));
+                {"portfolio_id":%d,"instrument_id":%d,"quantity":200,"currency_id":47,"date":"%s"}
+                """, portfolioId, instrumentId, LocalDate.now().toString()));
 
         assertTrue(response.statusCode() < 300,
                 "Update should succeed, got: " + response.statusCode() + " " + response.body());

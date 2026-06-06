@@ -3,12 +3,15 @@
 # S8: Start Advise — curl example
 #
 # Demonstrates: full advice session lifecycle.
-# Person → Client → Portfolio → Document upload → Signing envelope →
-# Advice Context → Agreement (linked to envelope) → submit-signing →
-# mark-signed → Session → data-ready → activate → ready-to-sign → signed →
-# close context → cleanup.
+# Person → Client → Portfolio → Advice Context → Agreement →
+# Document upload → Signing envelope (attached to the agreement) →
+# submit-signing → ceremony → mark-signed →
+# Session → data-ready → activate → ready-to-sign → signed → cleanup.
 #
-# The advisory agreement must be signed before a session can be created.
+# v1 signing model: the advisory agreement is created first, then the signing
+# envelope attaches to it via signable_type=advisory_agreement + signable_id.
+# Envelope documents carry a ceremony_role (input = to-be-signed,
+# output = signed result). A signed agreement is required before a session.
 #
 # Usage:
 #   cp .env.example .env   # fill in credentials
@@ -131,10 +134,38 @@ PORTFOLIO=$(curl -s -X POST "${API}/api/v1/portfolios" \
 PORTFOLIO_ID=$(echo "$PORTFOLIO" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Created Portfolio ID: ${PORTFOLIO_ID}"
 
-# --- Document upload and signing envelope (required for signed agreement) ---
+# --- Advice context + agreement (prerequisites for the signing envelope) ---
+# v1: the agreement is created before the signing envelope, since the
+# envelope references the agreement as its signable.
 
 echo ""
-echo "=== 6. Upload Document (multipart) ==="
+echo "=== 6. Create Advice Context ==="
+CONTEXT=$(curl -s -X POST "${API}/api/v1/advice-contexts" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json" \
+    -H "Idempotency-Key: $(uuidgen)" \
+    -d "{\"advice_policy_id\":${POLICY_ID},\"type\":\"individual\",\"name\":\"Curl-S8 Advice Context\",\"reference_person_id\":${PERSON_ID},\"members\":[{\"person_id\":${PERSON_ID},\"client_id\":${CLIENT_ID},\"power_of_attorney\":false}]}")
+
+CONTEXT_ID=$(echo "$CONTEXT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
+echo "Created Advice Context ID: ${CONTEXT_ID}"
+
+echo ""
+echo "=== 7. Create Advisory Agreement ==="
+AGREEMENT=$(curl -s -X POST "${API}/api/v1/advice-contexts/${CONTEXT_ID}/agreements" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json" \
+    -H "Idempotency-Key: $(uuidgen)" \
+    -d '{"version":"1.0","external_reference":"curl-s8-agreement"}')
+
+AGREEMENT_ID=$(echo "$AGREEMENT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
+echo "Created Agreement ID: ${AGREEMENT_ID}, status: draft"
+
+# --- Document upload and signing envelope (attached to the agreement) ---
+
+echo ""
+echo "=== 8. Upload Document (multipart) ==="
 TMPFILE=$(mktemp /tmp/curl-s8-agreement-XXXXXX.txt)
 echo "Hello World - Curl S8 Advisory Agreement" > "$TMPFILE"
 
@@ -151,30 +182,33 @@ DOCUMENT_ID=$(echo "$DOC" | python3 -c "import sys,json; print(json.load(sys.std
 echo "Uploaded Document ID: ${DOCUMENT_ID}"
 
 echo ""
-echo "=== 7. Create Signing Envelope ==="
+echo "=== 9. Create Signing Envelope ==="
+# v1: the envelope attaches to a polymorphic signable —
+# signable_type=advisory_agreement + signable_id.
 ENVELOPE=$(curl -s -X POST "${API}/api/v1/signing-envelopes" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d '{"title":"Curl-S8 Agreement Envelope"}')
+    -d "{\"title\":\"Curl-S8 Agreement Envelope\",\"signable_type\":\"advisory_agreement\",\"signable_id\":${AGREEMENT_ID}}")
 
 ENVELOPE_ID=$(echo "$ENVELOPE" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Created Envelope ID: ${ENVELOPE_ID}"
 
 echo ""
-echo "=== 8. Add Document to Envelope ==="
+echo "=== 10. Add Document to Envelope ==="
+# ceremony_role=input marks the document that will be signed.
 ADD_DOC_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1/signing-envelopes/${ENVELOPE_ID}/documents" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"document_id\":${DOCUMENT_ID},\"role\":\"source\"}")
+    -d "{\"document_id\":${DOCUMENT_ID},\"ceremony_role\":\"input\"}")
 echo "HTTP ${ADD_DOC_STATUS}"
 if [ "$ADD_DOC_STATUS" != "201" ]; then echo "ERROR: Expected 201, got ${ADD_DOC_STATUS}"; exit 1; fi
 
 echo ""
-echo "=== 9. Add Signer Party to Envelope ==="
+echo "=== 11. Add Signer Party to Envelope ==="
 ADD_PARTY_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1/signing-envelopes/${ENVELOPE_ID}/parties" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
@@ -185,7 +219,7 @@ echo "HTTP ${ADD_PARTY_STATUS}"
 if [ "$ADD_PARTY_STATUS" != "201" ]; then echo "ERROR: Expected 201, got ${ADD_PARTY_STATUS}"; exit 1; fi
 
 echo ""
-echo "=== 10. Send Envelope ==="
+echo "=== 12. Send Envelope ==="
 SEND_RESULT=$(curl -s -X POST "${API}/api/v1/signing-envelopes/${ENVELOPE_ID}/send" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
@@ -195,34 +229,11 @@ SEND_RESULT=$(curl -s -X POST "${API}/api/v1/signing-envelopes/${ENVELOPE_ID}/se
 ENVELOPE_STATUS=$(echo "$SEND_RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['status'])")
 echo "Envelope status after send: ${ENVELOPE_STATUS}"
 
-# --- Advice context, agreement, and signing ---
-
-echo ""
-echo "=== 11. Create Advice Context ==="
-CONTEXT=$(curl -s -X POST "${API}/api/v1/advice-contexts" \
-    -H "Authorization: Bearer ${TOKEN}" \
-    -H "Content-Type: application/json" \
-    -H "Accept: application/json" \
-    -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"advice_policy_id\":${POLICY_ID},\"type\":\"individual\",\"name\":\"Curl-S8 Advice Context\",\"reference_person_id\":${PERSON_ID},\"members\":[{\"person_id\":${PERSON_ID},\"client_id\":${CLIENT_ID},\"power_of_attorney\":false}]}")
-
-CONTEXT_ID=$(echo "$CONTEXT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
-echo "Created Advice Context ID: ${CONTEXT_ID}"
-
-echo ""
-echo "=== 12. Create Advisory Agreement (linked to envelope) ==="
-AGREEMENT=$(curl -s -X POST "${API}/api/v1/advice-contexts/${CONTEXT_ID}/agreements" \
-    -H "Authorization: Bearer ${TOKEN}" \
-    -H "Content-Type: application/json" \
-    -H "Accept: application/json" \
-    -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"version\":\"1.0\",\"signing_envelope_id\":${ENVELOPE_ID},\"external_reference\":\"curl-s8-agreement\"}")
-
-AGREEMENT_ID=$(echo "$AGREEMENT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
-echo "Created Agreement ID: ${AGREEMENT_ID}, status: draft"
+# --- Walk the agreement through signing ---
 
 echo ""
 echo "=== 13. Submit Signing (draft → pending_signature) ==="
+# v1: submit-signing accepts no body fields; idempotency via header.
 SUBMIT_RESULT=$(curl -s -X POST "${API}/api/v1/advice-agreements/${AGREEMENT_ID}/submit-signing" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
@@ -250,12 +261,15 @@ echo "Uploaded Signed Document ID: ${SIGNED_DOC_ID}"
 
 echo ""
 echo "=== 15. Add signed document to envelope ==="
+# ceremony_role=output marks the resulting signed document. Added before
+# marking the party signed — the last party auto-completes (and locks)
+# the envelope.
 ADD_SIGNED_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1/signing-envelopes/${ENVELOPE_ID}/documents" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"document_id\":${SIGNED_DOC_ID},\"role\":\"signed\"}")
+    -d "{\"document_id\":${SIGNED_DOC_ID},\"ceremony_role\":\"output\"}")
 echo "HTTP ${ADD_SIGNED_STATUS}"
 if [ "$ADD_SIGNED_STATUS" != "201" ]; then echo "ERROR: Expected 201, got ${ADD_SIGNED_STATUS}"; exit 1; fi
 
@@ -287,18 +301,7 @@ SIGNED_RESULT=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
 MARK_STATUS=$(echo "$SIGNED_RESULT" | grep "HTTP_STATUS:" | cut -d: -f2)
 echo "Mark-signed HTTP status: ${MARK_STATUS}"
 if [ "$MARK_STATUS" != "200" ] && [ "$MARK_STATUS" != "201" ]; then
-    echo "WARNING: mark-signed returned ${MARK_STATUS} — API validation rejects signed_document_id (known API issue)"
-    echo "Skipping advice session lifecycle (requires signed agreement)."
-    echo ""
-    echo "=== Close Advice Context ==="
-    curl -s -X POST "${API}/api/v1/advice-contexts/${CONTEXT_ID}/close" \
-        -H "Authorization: Bearer ${TOKEN}" \
-        -H "Content-Type: application/json" \
-        -H "Accept: application/json" \
-        -H "Idempotency-Key: $(uuidgen)" \
-        -d "{\"reason\":\"Scenario complete\"}" -o /dev/null -w "HTTP %{http_code}\n"
-    echo "Done. Advisory agreement signing blocked by API bug — session lifecycle skipped."
-    exit 0
+    echo "ERROR: mark-signed returned ${MARK_STATUS}"; echo "$SIGNED_RESULT"; exit 1
 fi
 
 # --- Advice Session lifecycle ---
@@ -310,7 +313,7 @@ SESSION=$(curl -s -X POST "${API}/api/v1/advice-contexts/${CONTEXT_ID}/sessions"
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d '{"external_session_id":"curl-s8-session","external_reference":"curl-s8"}')
+    -d '{"external_reference":"curl-s8-session"}')
 
 SESSION_ID=$(echo "$SESSION" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 SESSION_STATUS=$(echo "$SESSION" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['status'])")
@@ -334,12 +337,14 @@ echo "  status: $(echo "$RESULT" | python3 -c "import sys,json; print(json.load(
 
 echo ""
 echo "=== 21. Activate Session ==="
+# v1: activate no longer takes a redirect_url in the request body; the
+# advisor-UI redirect is returned by the API on the activated session.
 RESULT=$(curl -s -X POST "${API}/api/v1/advice-sessions/${SESSION_ID}/activate" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d '{"redirect_url":"https://example.com/advisor-ui/session"}')
+    -d '{}')
 echo "  status: $(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['status'])")"
 
 echo ""

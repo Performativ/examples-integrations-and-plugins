@@ -44,6 +44,16 @@ All scenarios require credentials. If credentials are missing:
 - NEVER use `@Disabled`, `assumeTrue`, or conditional skipping
 - NEVER commit credentials or `.env` files
 
+### Public-repo hygiene — NEVER leak tenant or customer data
+
+This repository is **public** — everything committed is world-readable, including in history.
+
+- **NEVER** commit real tenant, customer, partner, bank, or vendor names. Use neutral placeholders: `acme`, `example`, `your-tenant`.
+- **NEVER** commit real hostnames or tenant subdomains, PII (real people's names / emails / IDs), access tokens, bearer JWTs, request IDs, or any payload captured from a live tenant. Example data must be synthetic (`example.com` emails, approach-prefixed fake names like `Manual-S2 Client`).
+- **`openapi.json` must be clean at the source.** It is generated from the API gateway against a demo/placeholder tenant and copied here as-is. If a refreshed spec contains a real tenant/customer/partner name (commonly in a `description` derived from a source-code annotation), that is an **upstream bug** — fix the backend's spec generation / the annotation, regenerate, and re-pull. That is the durable fix; **importing a spec that contains real names is blocked until the source is clean.**
+- **Mandatory pre-push scan (fail closed).** Before pushing ANY spec refresh, scan it against the current known-names denylist (maintained out-of-repo so this public file never names anyone): `grep -niE "$(known_names_regex)" openapi.json` must return nothing. Never push a spec to this public repo without this gate passing.
+- **If a leak already reached this public repo, treat it as an incident:** scrub the names from `openapi.json` on the branch immediately (a sanctioned public-safety exception to "openapi.json — NEVER modify"), purge them from branch history (rewrite + force-push the unmerged branch), and open the upstream fix so the next refresh stays clean.
+
 ## Scenario Implementation Rules
 
 ### Parity is mandatory

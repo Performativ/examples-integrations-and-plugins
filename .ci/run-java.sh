@@ -11,4 +11,16 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "Running all scenarios in com.performativ.scenarios.${PACKAGE}..."
 cd "${REPO_ROOT}/java/scenarios"
-exec mvn verify -Dit.test="com.performativ.scenarios.${PACKAGE}.*" -DskipTests=false -Dskip.unit.tests=true
+
+# Failsafe's -Dit.test does not support fully-qualified dot-notation globs.
+# Instead, exclude the other package so only the target package runs.
+if [ "$PACKAGE" = "generated" ]; then
+  EXCLUDE="**/manual/**"
+elif [ "$PACKAGE" = "manual" ]; then
+  EXCLUDE="**/generated/**"
+else
+  echo "Unknown package: ${PACKAGE}" >&2
+  exit 1
+fi
+
+exec mvn verify -Dfailsafe.excludes="$EXCLUDE" -DskipTests=false -Dskip.unit.tests=true

@@ -10,7 +10,6 @@ import org.junit.jupiter.api.*;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -19,8 +18,14 @@ import static org.junit.jupiter.api.Assertions.*;
  * S8: Start Advise — full advice session lifecycle using generated client.
  *
  * <p>Creates prerequisites (Person → Client → Portfolio), opens an advice
- * context, creates an advisory agreement, starts an advice session, and
- * walks it through: created → data_ready → active → ready_to_sign → signed.
+ * context, creates an advisory agreement, attaches and completes a signing
+ * envelope, then starts an advice session and walks it through:
+ * created → data_ready → active → ready_to_sign → signed.
+ *
+ * <p>v1 signing model: the advisory agreement is created first, then the
+ * signing envelope is attached to it via {@code signable_type=advisory_agreement}
+ * + {@code signable_id}. Documents carry a {@code ceremony_role}
+ * ({@code input} = to-be-signed, {@code output} = signed result).
  *
  * <p>Strict: no raw HTTP fallbacks for API operations. Cleanup uses raw HTTP.
  *
@@ -143,7 +148,53 @@ class StartAdviseScenario extends GeneratedClientScenario {
         registerCleanup(token, "/api/v1/portfolios/" + portfolioId);
     }
 
-    // -- Document upload and signing envelope (required for signed agreement) --
+    // -- Advice Context + Advisory Agreement (prerequisites for the session) --
+    // v1: the agreement is created before the signing envelope, since the
+    // envelope references the agreement as its signable.
+
+    @Test
+    @Order(SETUP + 6)
+    void createAdviceContext() throws Exception {
+        assertTrue(advicePolicyId > 0, "Advice policy must be found first");
+        assertTrue(personId > 0, "Person must be created first");
+        assertTrue(clientId > 0, "Client must be created first");
+
+        // Raw HTTP: the generated StoreAdviceContextRequest requires members
+        // with client_id (v1 change from person-centric to client-centric).
+        HttpResponse<String> response = apiPost(token, "/api/v1/advice-contexts",
+                String.format("""
+                {"advice_policy_id":%d,"type":"individual","name":"Gen-S8 Advice Context","reference_person_id":%d,"members":[{"person_id":%d,"client_id":%d,"power_of_attorney":false}]}
+                """, advicePolicyId, personId, personId, clientId));
+
+        assertTrue(response.statusCode() < 300,
+                "Create advice context should succeed, got: " + response.statusCode() + " " + response.body());
+
+        JsonNode data = objectMapper.readTree(response.body()).path("data");
+        adviceContextId = data.get("id").asLong();
+        assertTrue(adviceContextId > 0);
+        assertEquals("active", data.get("status").asText());
+    }
+
+    @Test
+    @Order(SETUP + 7)
+    void createAdvisoryAgreement() throws ApiException {
+        assertTrue(adviceContextId > 0, "Advice context must be created first");
+
+        var req = new StoreAdvisoryAgreementRequest()
+                .version("1.0")
+                .externalReference("gen-s8-agreement");
+
+        var response = adviceApi.v1AdviceAgreementsStoreForContext(
+                String.valueOf(adviceContextId), idempotencyKey(), req);
+        assertNotNull(response);
+        assertNotNull(response.getData());
+
+        agreementId = response.getData().getId();
+        assertTrue(agreementId > 0);
+        assertEquals("draft", response.getData().getStatus().getValue());
+    }
+
+    // -- Document upload and signing envelope (attached to the agreement) -----
 
     @Test
     @Order(ENVELOPE + 1)
@@ -171,10 +222,16 @@ class StartAdviseScenario extends GeneratedClientScenario {
     @Test
     @Order(ENVELOPE + 2)
     void createSigningEnvelope() throws ApiException {
-        var req = new StoreSigningEnvelopeRequest()
-                .title("Gen-S8 Agreement Envelope");
+        assertTrue(agreementId > 0, "Agreement must be created first");
 
-        var response = adviceApi.signingEnvelopesStore(idempotencyKey(), req);
+        // v1: the envelope attaches to a polymorphic signable —
+        // signable_type=advisory_agreement + signable_id.
+        var req = new StoreSigningEnvelopeRequest()
+                .title("Gen-S8 Agreement Envelope")
+                .signableType(StoreSigningEnvelopeRequest.SignableTypeEnum.ADVISORY_AGREEMENT)
+                .signableId(agreementId);
+
+        var response = adviceApi.signingEnvelopesStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -188,9 +245,10 @@ class StartAdviseScenario extends GeneratedClientScenario {
         assertTrue(envelopeId > 0, "Envelope must be created first");
         assertTrue(documentId > 0, "Document must be uploaded first");
 
+        // ceremony_role=input marks the document that will be signed.
         var req = new AddDocumentToEnvelopeRequest()
                 .documentId(documentId)
-                .role(AddDocumentToEnvelopeRequest.RoleEnum.SOURCE);
+                .ceremonyRole(AddDocumentToEnvelopeRequest.CeremonyRoleEnum.INPUT);
 
         adviceApi.signingEnvelopesDocumentsStore(
                 String.valueOf(envelopeId), req, idempotencyKey());
@@ -219,69 +277,20 @@ class StartAdviseScenario extends GeneratedClientScenario {
                 String.valueOf(envelopeId), idempotencyKey());
     }
 
-    // -- Advice Context -------------------------------------------------------
+    // -- Walk the agreement through signing -----------------------------------
 
     @Test
     @Order(AGREEMENT + 1)
-    void createAdviceContext() throws Exception {
-        assertTrue(advicePolicyId > 0, "Advice policy must be found first");
-        assertTrue(personId > 0, "Person must be created first");
-        assertTrue(clientId > 0, "Client must be created first");
-
-        // Raw HTTP: the generated StoreAdviceContextRequest requires members
-        // with client_id (v1 change from person-centric to client-centric).
-        HttpResponse<String> response = apiPost(token, "/api/v1/advice-contexts",
-                String.format("""
-                {"advice_policy_id":%d,"type":"individual","name":"Gen-S8 Advice Context","reference_person_id":%d,"members":[{"person_id":%d,"client_id":%d,"power_of_attorney":false}]}
-                """, advicePolicyId, personId, personId, clientId));
-
-        assertTrue(response.statusCode() < 300,
-                "Create advice context should succeed, got: " + response.statusCode() + " " + response.body());
-
-        JsonNode data = objectMapper.readTree(response.body()).path("data");
-        adviceContextId = data.get("id").asLong();
-        assertTrue(adviceContextId > 0);
-        assertEquals("active", data.get("status").asText());
-    }
-
-    // -- Advisory Agreement (linked to signing envelope) ----------------------
-
-    @Test
-    @Order(AGREEMENT + 2)
-    void createAdvisoryAgreement() throws ApiException {
-        assertTrue(adviceContextId > 0, "Advice context must be created first");
-        assertTrue(envelopeId > 0, "Signing envelope must be created first");
-
-        var req = new StoreAdvisoryAgreementRequest()
-                .version("1.0")
-                .signingEnvelopeId(envelopeId)
-                .externalReference("gen-s8-agreement");
-
-        var response = adviceApi.v1AdviceAgreementsStoreForContext(
-                String.valueOf(adviceContextId), idempotencyKey(), req);
-        assertNotNull(response);
-        assertNotNull(response.getData());
-
-        agreementId = response.getData().getId();
-        assertTrue(agreementId > 0);
-        assertEquals("draft", response.getData().getStatus().getValue());
-    }
-
-    @Test
-    @Order(AGREEMENT + 3)
     void submitSigning() throws ApiException {
         assertTrue(agreementId > 0, "Agreement must be created first");
 
-        // In v1, idempotency moved from body to Idempotency-Key header.
-        // submit-signing body no longer has document_id — only signing_envelope_id (optional).
-        var req = new SubmitSigningAdvisoryAgreementRequest();
-
+        // v1: submit-signing has no body; idempotency travels via the header.
         adviceApi.advisoryAgreementActionSubmitSigning(
-                String.valueOf(agreementId), idempotencyKey(), req);
+                String.valueOf(agreementId), idempotencyKey());
     }
 
     @Test
-    @Order(AGREEMENT + 4)
+    @Order(AGREEMENT + 2)
     void uploadSignedDocumentAndAddToEnvelope() throws Exception {
         assertTrue(envelopeId > 0, "Envelope must be created first");
         assertTrue(documentId > 0, "Document must be uploaded first");
@@ -300,17 +309,18 @@ class StartAdviseScenario extends GeneratedClientScenario {
 
         // Add signed document to envelope BEFORE marking the party signed —
         // marking all parties signed completes the envelope, after which
-        // documents can no longer be added.
+        // documents can no longer be added. ceremony_role=output marks the
+        // resulting signed document.
         var req = new AddDocumentToEnvelopeRequest()
                 .documentId(signedDocId)
-                .role(AddDocumentToEnvelopeRequest.RoleEnum.SIGNED);
+                .ceremonyRole(AddDocumentToEnvelopeRequest.CeremonyRoleEnum.OUTPUT);
 
         adviceApi.signingEnvelopesDocumentsStore(
                 String.valueOf(envelopeId), req, idempotencyKey());
     }
 
     @Test
-    @Order(AGREEMENT + 5)
+    @Order(AGREEMENT + 3)
     void markSignerPartySigned() throws ApiException {
         assertTrue(envelopeId > 0, "Envelope must be created first");
 
@@ -327,7 +337,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(AGREEMENT + 6)
+    @Order(AGREEMENT + 4)
     void markAgreementSigned() throws ApiException {
         assertTrue(agreementId > 0, "Agreement must be created first");
         assertTrue(signedDocId > 0, "Signed document must be uploaded first");
@@ -347,8 +357,7 @@ class StartAdviseScenario extends GeneratedClientScenario {
         assertTrue(adviceContextId > 0, "Advice context must be created first");
 
         var req = new StoreAdviceSessionRequest()
-                .externalSessionId("gen-s8-session")
-                .externalReference("gen-s8");
+                .externalReference("gen-s8-session");
 
         var response = adviceApi.v1AdviceSessionsStoreForContext(
                 String.valueOf(adviceContextId), idempotencyKey(), req);
@@ -392,8 +401,9 @@ class StartAdviseScenario extends GeneratedClientScenario {
     void activateSession() throws ApiException {
         assertTrue(sessionId > 0, "Session must be created first");
 
-        var req = new ActivateAdviceSessionRequest()
-                .redirectUrl("https://example.com/advisor-ui/session");
+        // v1: activate no longer takes a redirect_url in the request body; the
+        // advisor-UI redirect is returned by the API on the activated session.
+        var req = new ActivateAdviceSessionRequest();
 
         var response = adviceApi.adviceSessionActionActivate(
                 String.valueOf(sessionId), idempotencyKey(), req);
@@ -458,8 +468,10 @@ class StartAdviseScenario extends GeneratedClientScenario {
     void expireAgreement() throws ApiException {
         assertTrue(agreementId > 0, "Agreement must be created first");
 
+        // expire takes no body — use the 2-arg overload (passing null would
+        // bind to the additionalHeaders Map overload and NPE).
         adviceApi.advisoryAgreementActionExpire(
-                String.valueOf(agreementId), idempotencyKey(), null);
+                String.valueOf(agreementId), idempotencyKey());
     }
 
     @Test

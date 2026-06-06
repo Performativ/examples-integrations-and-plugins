@@ -34,6 +34,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
     private static ClientsApi clientsApi;
     private static PortfoliosApi portfoliosApi;
     private static TransactionsApi transactionsApi;
+    private static InstrumentsApi instrumentsApi;
 
     private static long relationshipTypeId;
     private static long personAId;
@@ -45,6 +46,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
     private static long portfolioCashAccountId;
     private static long externalPositionId;
     private static long externalBalanceId;
+    private static long instrumentId;
 
     @BeforeAll
     static void setup() throws Exception {
@@ -56,6 +58,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
         clientsApi = new ClientsApi(apiClient);
         portfoliosApi = new PortfoliosApi(apiClient);
         transactionsApi = new TransactionsApi(apiClient);
+        instrumentsApi = new InstrumentsApi(apiClient);
     }
 
     // -- Setup: relationship type, persons, relationship, client, links --------
@@ -244,10 +247,21 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
         assertTrue(clientId > 0, "Client must be created first");
         assertTrue(portfolioId > 0, "Portfolio must be created first");
 
+        // v1 external positions reference a pre-registered Instrument by id.
+        // Instruments are pre-registered (typically via bulk file);
+        // instrument_isin/name are optional audit fields. Reference an existing
+        // instrument from the tenant universe.
+        var instruments = instrumentsApi.instrumentsIndex(
+                null, null, null, null, null, null, null, null, null, null, null, null, null, 1, null);
+        assertNotNull(instruments.getData());
+        assertFalse(instruments.getData().isEmpty(),
+                "Tenant must have at least one pre-registered instrument");
+        instrumentId = instruments.getData().get(0).getId();
+        assertTrue(instrumentId > 0, "Instrument ID should be positive");
+
         var req = new StoreExternalPositionRequest()
                 .portfolioId(portfolioId)
-                .instrumentIsin("US0378331005")
-                .instrumentName("Apple Inc.")
+                .instrumentId(instrumentId)
                 .quantity(new BigDecimal("100"))
                 .currencyId(47L)
                 .date(LocalDate.now());
@@ -327,8 +341,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
         assertTrue(externalPositionId > 0, "External Position must be created first");
 
         var req = new UpdateExternalPositionRequest()
-                .instrumentIsin("US0378331005")
-                .instrumentName("Apple Inc.")
+                .instrumentId(instrumentId)
                 .quantity(new BigDecimal("200"))
                 .currencyId(47L)
                 .portfolioId(portfolioId)

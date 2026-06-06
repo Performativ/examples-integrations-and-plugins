@@ -82,7 +82,7 @@ class PortfolioSetupScenario extends BaseScenario {
 
         JsonNode portfolio = createEntity(token, "/api/v1/portfolios",
                 String.format("""
-                {"name":"Manual-S3 Portfolio","client_id":%d,"currency_id":47}
+                {"name":"Manual-S3 Portfolio","client_ids":[%d],"currency_id":47}
                 """, clientId));
 
         portfolioId = portfolio.get("id").asInt();

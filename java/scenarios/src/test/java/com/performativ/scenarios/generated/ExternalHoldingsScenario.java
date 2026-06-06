@@ -30,27 +30,23 @@ import static org.junit.jupiter.api.Assertions.*;
 class ExternalHoldingsScenario extends GeneratedClientScenario {
 
     private static String token;
-    private static PersonRelationshipTypeApi relationshipTypeApi;
-    private static PersonRelationshipApi relationshipApi;
-    private static PersonApi personApi;
-    private static ClientApi clientApi;
-    private static ClientPersonApi clientPersonApi;
-    private static PortfolioApi portfolioApi;
-    private static CashAccountApi cashAccountApi;
-    private static PortfolioCashAccountApi portfolioCashAccountApi;
-    private static ExternalPositionApi externalPositionApi;
-    private static ExternalBalanceApi externalBalanceApi;
+    private static PersonsApi personsApi;
+    private static ClientsApi clientsApi;
+    private static PortfoliosApi portfoliosApi;
+    private static TransactionsApi transactionsApi;
+    private static InstrumentsApi instrumentsApi;
 
-    private static int relationshipTypeId;
-    private static int personAId;
-    private static int personBId;
-    private static int relationshipId;
-    private static int clientId;
-    private static int portfolioId;
-    private static int cashAccountId;
-    private static int portfolioCashAccountId;
-    private static int externalPositionId;
-    private static int externalBalanceId;
+    private static long relationshipTypeId;
+    private static long personAId;
+    private static long personBId;
+    private static long relationshipId;
+    private static long clientId;
+    private static long portfolioId;
+    private static long cashAccountId;
+    private static long portfolioCashAccountId;
+    private static long externalPositionId;
+    private static long externalBalanceId;
+    private static long instrumentId;
 
     @BeforeAll
     static void setup() throws Exception {
@@ -58,16 +54,11 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
         token = acquireToken();
 
         ApiClient apiClient = createApiClient(token);
-        relationshipTypeApi = new PersonRelationshipTypeApi(apiClient);
-        relationshipApi = new PersonRelationshipApi(apiClient);
-        personApi = new PersonApi(apiClient);
-        clientApi = new ClientApi(apiClient);
-        clientPersonApi = new ClientPersonApi(apiClient);
-        portfolioApi = new PortfolioApi(apiClient);
-        cashAccountApi = new CashAccountApi(apiClient);
-        portfolioCashAccountApi = new PortfolioCashAccountApi(apiClient);
-        externalPositionApi = new ExternalPositionApi(apiClient);
-        externalBalanceApi = new ExternalBalanceApi(apiClient);
+        personsApi = new PersonsApi(apiClient);
+        clientsApi = new ClientsApi(apiClient);
+        portfoliosApi = new PortfoliosApi(apiClient);
+        transactionsApi = new TransactionsApi(apiClient);
+        instrumentsApi = new InstrumentsApi(apiClient);
     }
 
     // -- Setup: relationship type, persons, relationship, client, links --------
@@ -80,7 +71,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
                 .label("Married")
                 .isSymmetric(true);
 
-        var response = relationshipTypeApi.personRelationshipTypesStore(req, idempotencyKey());
+        var response = personsApi.personRelationshipTypesStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -98,7 +89,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
                 .email("gen-s4-john@example.com")
                 .languageCode("en");
 
-        var response = personApi.personsStore(req, idempotencyKey());
+        var response = personsApi.personsStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -116,7 +107,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
                 .email("gen-s4-jane@example.com")
                 .languageCode("en");
 
-        var response = personApi.personsStore(req, idempotencyKey());
+        var response = personsApi.personsStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -137,7 +128,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
                 .relatedPersonId(personBId)
                 .personRelationshipTypeId(relationshipTypeId);
 
-        var response = relationshipApi.personRelationshipsStore(req, idempotencyKey());
+        var response = personsApi.personRelationshipsStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -153,9 +144,9 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
                 .name("Gen-S4 Client")
                 .type(StoreClientRequest.TypeEnum.INDIVIDUAL)
                 .isActive(true)
-                .currencyId(47);
+                .currencyId(47L);
 
-        var response = clientApi.clientsStore(req, idempotencyKey());
+        var response = clientsApi.clientsStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -176,7 +167,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
                 .personId(personAId)
                 .isPrimary(true);
 
-        clientPersonApi.clientPersonsStore(req, idempotencyKey());
+        clientsApi.clientPersonsStore(req, idempotencyKey());
     }
 
     @Test
@@ -190,7 +181,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
                 .personId(personBId)
                 .isPrimary(false);
 
-        clientPersonApi.clientPersonsStore(req, idempotencyKey());
+        clientsApi.clientPersonsStore(req, idempotencyKey());
     }
 
     @Test
@@ -200,10 +191,10 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
 
         var req = new StorePortfolioRequest()
                 .name("Gen-S4 Portfolio")
-                .clientId(clientId)
-                .currencyId(47);
+                .addClientIdsItem(clientId)
+                .currencyId(47L);
 
-        var response = portfolioApi.portfoliosStore(req, idempotencyKey());
+        var response = portfoliosApi.portfoliosStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -219,10 +210,10 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
 
         var req = new StoreCashAccountRequest()
                 .name("Gen-S4 Cash Account")
-                .clientId(clientId)
-                .currencyId(47);
+                .addClientIdsItem(clientId)
+                .currencyId(47L);
 
-        var response = cashAccountApi.cashAccountsStore(req, idempotencyKey());
+        var response = portfoliosApi.cashAccountsStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -241,7 +232,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
                 .portfolioId(portfolioId)
                 .cashAccountId(cashAccountId);
 
-        var response = portfolioCashAccountApi.portfolioCashAccountsStore(req, idempotencyKey());
+        var response = portfoliosApi.portfolioCashAccountsStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -256,16 +247,26 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
         assertTrue(clientId > 0, "Client must be created first");
         assertTrue(portfolioId > 0, "Portfolio must be created first");
 
+        // v1 external positions reference a pre-registered Instrument by id.
+        // Instruments are pre-registered (typically via bulk file);
+        // instrument_isin/name are optional audit fields. Reference an existing
+        // instrument from the tenant universe.
+        var instruments = instrumentsApi.instrumentsIndex(
+                null, null, null, null, null, null, null, null, null, null, null, null, null, 1, null);
+        assertNotNull(instruments.getData());
+        assertFalse(instruments.getData().isEmpty(),
+                "Tenant must have at least one pre-registered instrument");
+        instrumentId = instruments.getData().get(0).getId();
+        assertTrue(instrumentId > 0, "Instrument ID should be positive");
+
         var req = new StoreExternalPositionRequest()
-                .clientId(clientId)
                 .portfolioId(portfolioId)
-                .instrumentIsin("US0378331005")
-                .instrumentName("Apple Inc.")
+                .instrumentId(instrumentId)
                 .quantity(new BigDecimal("100"))
-                .currencyId(47)
+                .currencyId(47L)
                 .date(LocalDate.now());
 
-        var response = externalPositionApi.externalPositionsStore(req, idempotencyKey());
+        var response = transactionsApi.externalPositionsStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -281,13 +282,12 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
         assertTrue(cashAccountId > 0, "Cash Account must be created first");
 
         var req = new StoreExternalBalanceRequest()
-                .clientId(clientId)
                 .cashAccountId(cashAccountId)
                 .balance(new BigDecimal("50000.00"))
-                .currencyId(47)
+                .currencyId(47L)
                 .date(LocalDate.now());
 
-        var response = externalBalanceApi.externalBalancesStore(req, idempotencyKey());
+        var response = transactionsApi.externalBalancesStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -303,7 +303,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
     void readExternalPosition() throws ApiException {
         assertTrue(externalPositionId > 0, "External Position must be created first");
 
-        var response = externalPositionApi.externalPositionsShow(
+        var response = transactionsApi.externalPositionsShow(
                 String.valueOf(externalPositionId), null);
         assertNotNull(response);
         assertEquals(externalPositionId, response.getData().getId());
@@ -314,7 +314,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
     void readExternalBalance() throws ApiException {
         assertTrue(externalBalanceId > 0, "External Balance must be created first");
 
-        var response = externalBalanceApi.externalBalancesShow(
+        var response = transactionsApi.externalBalancesShow(
                 String.valueOf(externalBalanceId), null);
         assertNotNull(response);
         assertEquals(externalBalanceId, response.getData().getId());
@@ -341,14 +341,13 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
         assertTrue(externalPositionId > 0, "External Position must be created first");
 
         var req = new UpdateExternalPositionRequest()
-                .instrumentIsin("US0378331005")
-                .instrumentName("Apple Inc.")
+                .instrumentId(instrumentId)
                 .quantity(new BigDecimal("200"))
-                .currencyId(47)
+                .currencyId(47L)
                 .portfolioId(portfolioId)
                 .date(LocalDate.now());
 
-        var response = externalPositionApi.externalPositionsUpdate(
+        var response = transactionsApi.externalPositionsUpdate(
                 String.valueOf(externalPositionId), req);
         assertNotNull(response);
     }
@@ -359,7 +358,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
     @Order(TEARDOWN + 1)
     void deleteExternalBalance() throws ApiException {
         assertTrue(externalBalanceId > 0, "External Balance must be created first");
-        externalBalanceApi.externalBalancesDestroy(String.valueOf(externalBalanceId));
+        transactionsApi.externalBalancesDestroy(String.valueOf(externalBalanceId));
         externalBalanceId = 0;
     }
 
@@ -367,7 +366,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
     @Order(TEARDOWN + 2)
     void deleteExternalPosition() throws ApiException {
         assertTrue(externalPositionId > 0, "External Position must be created first");
-        externalPositionApi.externalPositionsDestroy(String.valueOf(externalPositionId));
+        transactionsApi.externalPositionsDestroy(String.valueOf(externalPositionId));
         externalPositionId = 0;
     }
 
@@ -375,7 +374,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
     @Order(TEARDOWN + 3)
     void deletePortfolioCashAccount() throws ApiException {
         assertTrue(portfolioCashAccountId > 0, "Portfolio Cash Account link must be created first");
-        portfolioCashAccountApi.portfolioCashAccountsDestroy(String.valueOf(portfolioCashAccountId));
+        portfoliosApi.portfolioCashAccountsDestroy(String.valueOf(portfolioCashAccountId));
         portfolioCashAccountId = 0;
     }
 
@@ -383,7 +382,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
     @Order(TEARDOWN + 4)
     void deleteCashAccount() throws ApiException {
         assertTrue(cashAccountId > 0, "Cash Account must be created first");
-        cashAccountApi.cashAccountsDestroy(String.valueOf(cashAccountId));
+        portfoliosApi.cashAccountsDestroy(String.valueOf(cashAccountId));
         cashAccountId = 0;
     }
 
@@ -391,7 +390,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
     @Order(TEARDOWN + 5)
     void deletePortfolio() throws ApiException {
         assertTrue(portfolioId > 0, "Portfolio must be created first");
-        portfolioApi.portfoliosDestroy(String.valueOf(portfolioId));
+        portfoliosApi.portfoliosDestroy(String.valueOf(portfolioId));
         portfolioId = 0;
     }
 
@@ -399,7 +398,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
     @Order(TEARDOWN + 6)
     void deleteRelationship() throws ApiException {
         assertTrue(relationshipId > 0, "Relationship must be created first");
-        relationshipApi.personRelationshipsDestroy(String.valueOf(relationshipId));
+        personsApi.personRelationshipsDestroy(String.valueOf(relationshipId));
         relationshipId = 0;
     }
 
@@ -407,7 +406,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
     @Order(TEARDOWN + 7)
     void deletePersonB() throws ApiException {
         assertTrue(personBId > 0, "Person B must be created first");
-        personApi.personsDestroy(String.valueOf(personBId));
+        personsApi.personsDestroy(String.valueOf(personBId));
         personBId = 0;
     }
 
@@ -415,7 +414,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
     @Order(TEARDOWN + 8)
     void deletePersonA() throws ApiException {
         assertTrue(personAId > 0, "Person A must be created first");
-        personApi.personsDestroy(String.valueOf(personAId));
+        personsApi.personsDestroy(String.valueOf(personAId));
         personAId = 0;
     }
 
@@ -423,7 +422,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
     @Order(TEARDOWN + 9)
     void deleteClient() throws ApiException {
         assertTrue(clientId > 0, "Client must be created first");
-        clientApi.clientsDestroy(String.valueOf(clientId));
+        clientsApi.clientsDestroy(String.valueOf(clientId));
         clientId = 0;
     }
 
@@ -431,7 +430,7 @@ class ExternalHoldingsScenario extends GeneratedClientScenario {
     @Order(TEARDOWN + 10)
     void deleteRelationshipType() throws ApiException {
         assertTrue(relationshipTypeId > 0, "Relationship type must be created first");
-        relationshipTypeApi.personRelationshipTypesDestroy(String.valueOf(relationshipTypeId));
+        personsApi.personRelationshipTypesDestroy(String.valueOf(relationshipTypeId));
         relationshipTypeId = 0;
     }
 

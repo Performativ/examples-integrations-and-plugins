@@ -1,7 +1,7 @@
 package com.performativ.scenarios.generated;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.performativ.client.api.PersonApi;
+import com.performativ.client.api.PersonsApi;
 import com.performativ.client.core.ApiClient;
 import com.performativ.client.core.ApiException;
 import com.performativ.client.model.StorePersonRequest;
@@ -30,8 +30,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class WebhookDeliveryScenario extends GeneratedClientScenario {
 
     private static String token;
-    private static PersonApi personApi;
-    private static int personId;
+    private static PersonsApi personsApi;
+    private static long personId;
     private static String createdBefore; // ISO-8601 timestamp recorded before person creation
 
     @BeforeAll
@@ -41,7 +41,7 @@ class WebhookDeliveryScenario extends GeneratedClientScenario {
         token = acquireToken();
 
         ApiClient apiClient = createApiClient(token);
-        personApi = new PersonApi(apiClient);
+        personsApi = new PersonsApi(apiClient);
     }
 
     @Test
@@ -56,7 +56,7 @@ class WebhookDeliveryScenario extends GeneratedClientScenario {
                 .email("gen-s5@example.com")
                 .languageCode("en");
 
-        var response = personApi.personsStore(req, idempotencyKey());
+        var response = personsApi.personsStore(req, idempotencyKey());
         assertNotNull(response, "Person store response should not be null");
         assertNotNull(response.getData(), "Person data should not be null");
 
@@ -107,7 +107,7 @@ class WebhookDeliveryScenario extends GeneratedClientScenario {
 
             if ("Person".equals(event.path("entity").asText())
                     && "Created".equals(event.path("event").asText())
-                    && event.path("entity_id").asInt() == personId) {
+                    && event.path("entity_id").asLong() == personId) {
                 found = true;
                 break;
             }
@@ -122,7 +122,7 @@ class WebhookDeliveryScenario extends GeneratedClientScenario {
     @Order(TEARDOWN + 1)
     void deletePerson() throws ApiException {
         assertTrue(personId > 0, "Person must be created first");
-        personApi.personsDestroy(String.valueOf(personId));
+        personsApi.personsDestroy(String.valueOf(personId));
         personId = 0;
     }
 

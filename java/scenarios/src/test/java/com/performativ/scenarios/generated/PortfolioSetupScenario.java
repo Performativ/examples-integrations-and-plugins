@@ -1,9 +1,8 @@
 package com.performativ.scenarios.generated;
 
-import com.performativ.client.api.ClientApi;
-import com.performativ.client.api.ClientPersonApi;
-import com.performativ.client.api.PersonApi;
-import com.performativ.client.api.PortfolioApi;
+import com.performativ.client.api.ClientsApi;
+import com.performativ.client.api.PersonsApi;
+import com.performativ.client.api.PortfoliosApi;
 import com.performativ.client.core.ApiClient;
 import com.performativ.client.core.ApiException;
 import com.performativ.client.model.*;
@@ -31,14 +30,13 @@ import static org.junit.jupiter.api.Assertions.*;
 class PortfolioSetupScenario extends GeneratedClientScenario {
 
     private static String token;
-    private static PersonApi personApi;
-    private static ClientApi clientApi;
-    private static ClientPersonApi clientPersonApi;
-    private static PortfolioApi portfolioApi;
+    private static PersonsApi personsApi;
+    private static ClientsApi clientsApi;
+    private static PortfoliosApi portfoliosApi;
 
-    private static int personId;
-    private static int clientId;
-    private static int portfolioId;
+    private static long personId;
+    private static long clientId;
+    private static long portfolioId;
 
     @BeforeAll
     static void setup() throws Exception {
@@ -46,10 +44,9 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
         token = acquireToken();
 
         ApiClient apiClient = createApiClient(token);
-        personApi = new PersonApi(apiClient);
-        clientApi = new ClientApi(apiClient);
-        clientPersonApi = new ClientPersonApi(apiClient);
-        portfolioApi = new PortfolioApi(apiClient);
+        personsApi = new PersonsApi(apiClient);
+        clientsApi = new ClientsApi(apiClient);
+        portfoliosApi = new PortfoliosApi(apiClient);
     }
 
     // -- Create chain: Person -> Client -> link -> Portfolio ------------------
@@ -63,7 +60,7 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
                 .email("gen-s3@example.com")
                 .languageCode("en");
 
-        var response = personApi.personsStore(req, idempotencyKey());
+        var response = personsApi.personsStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -79,9 +76,9 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
                 .name("Gen-S3 Client")
                 .type(StoreClientRequest.TypeEnum.INDIVIDUAL)
                 .isActive(true)
-                .currencyId(47);
+                .currencyId(47L);
 
-        var response = clientApi.clientsStore(req, idempotencyKey());
+        var response = clientsApi.clientsStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -103,7 +100,7 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
                 .personId(personId)
                 .isPrimary(true);
 
-        clientPersonApi.clientPersonsStore(req, idempotencyKey());
+        clientsApi.clientPersonsStore(req, idempotencyKey());
     }
 
     @Test
@@ -113,10 +110,10 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
 
         var req = new StorePortfolioRequest()
                 .name("Gen-S3 Portfolio")
-                .clientId(clientId)
-                .currencyId(47);
+                .addClientIdsItem(clientId)
+                .currencyId(47L);
 
-        var response = portfolioApi.portfoliosStore(req, idempotencyKey());
+        var response = portfoliosApi.portfoliosStore(req, idempotencyKey());
         assertNotNull(response, "Portfolio store response should not be null");
         assertNotNull(response.getData(), "Portfolio data should not be null");
 
@@ -134,7 +131,7 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
     void readPortfolio() throws ApiException {
         assertTrue(portfolioId > 0, "Portfolio must be created first");
 
-        var response = portfolioApi.portfoliosShow(String.valueOf(portfolioId), null);
+        var response = portfoliosApi.portfoliosShow(String.valueOf(portfolioId), null);
         assertNotNull(response);
 
         var data = response.getData();
@@ -152,12 +149,12 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
 
         var req = new UpdatePortfolioRequest()
                 .name("Gen-S3 Portfolio Updated")
-                .currencyId(47);
+                .currencyId(47L);
 
-        var response = portfolioApi.portfoliosUpdate(String.valueOf(portfolioId), req);
+        var response = portfoliosApi.portfoliosUpdate(String.valueOf(portfolioId), req);
         assertNotNull(response, "Portfolio update response should not be null");
 
-        var readBack = portfolioApi.portfoliosShow(String.valueOf(portfolioId), null);
+        var readBack = portfoliosApi.portfoliosShow(String.valueOf(portfolioId), null);
         assertEquals("Gen-S3 Portfolio Updated", readBack.getData().getName(),
                 "Updated name should persist — verifies show response model after update");
     }
@@ -168,7 +165,7 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
     @Order(TEARDOWN + 1)
     void deletePortfolio() throws ApiException {
         assertTrue(portfolioId > 0, "Portfolio must be created first");
-        portfolioApi.portfoliosDestroy(String.valueOf(portfolioId));
+        portfoliosApi.portfoliosDestroy(String.valueOf(portfolioId));
         portfolioId = 0;
     }
 
@@ -176,7 +173,7 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
     @Order(TEARDOWN + 2)
     void deleteClient() throws ApiException {
         assertTrue(clientId > 0, "Client must be created first");
-        clientApi.clientsDestroy(String.valueOf(clientId));
+        clientsApi.clientsDestroy(String.valueOf(clientId));
         clientId = 0;
     }
 
@@ -185,7 +182,7 @@ class PortfolioSetupScenario extends GeneratedClientScenario {
     void deletePerson() throws ApiException {
         assertTrue(personId > 0, "Person must be created first");
         try {
-            personApi.personsDestroy(String.valueOf(personId));
+            personsApi.personsDestroy(String.valueOf(personId));
         } catch (ApiException e) {
             // Person may already be cascade-deleted with the client
             if (e.getCode() != 404) throw e;

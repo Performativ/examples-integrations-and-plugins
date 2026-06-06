@@ -1,6 +1,6 @@
 package com.performativ.scenarios.generated;
 
-import com.performativ.client.api.AsyncBatchApi;
+import com.performativ.client.api.IntegrationsApi;
 import com.performativ.client.core.ApiClient;
 import com.performativ.client.core.ApiException;
 import com.performativ.client.model.CreateBatchRequest;
@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * S6: Bulk Ingestion — create a batch and obtain a presigned upload URL
  * using the generated OpenAPI client (v1 endpoints).
  *
- * <p>Strict: if the generated {@link AsyncBatchApi} fails, the test fails.
+ * <p>Strict: if the generated {@link IntegrationsApi} fails, the test fails.
  *
  * <p>The batch is not started — this scenario only verifies that the
  * multi-step setup flow works (create batch → get presigned URL).
@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class BulkIngestionScenario extends GeneratedClientScenario {
 
-    private static AsyncBatchApi batchApi;
+    private static IntegrationsApi integrationsApi;
     private static String batchId;
 
     @BeforeAll
@@ -32,7 +32,7 @@ class BulkIngestionScenario extends GeneratedClientScenario {
         String token = acquireToken();
 
         ApiClient apiClient = createApiClient(token);
-        batchApi = new AsyncBatchApi(apiClient);
+        integrationsApi = new IntegrationsApi(apiClient);
     }
 
     @Test
@@ -41,7 +41,7 @@ class BulkIngestionScenario extends GeneratedClientScenario {
         var req = new CreateBatchRequest()
                 .uploadMode(CreateBatchRequest.UploadModeEnum.PRESIGNED);
 
-        var response = batchApi.bulkAsyncBatchesCreate(req);
+        var response = integrationsApi.bulkAsyncBatchesCreate(req);
         assertNotNull(response, "Batch create response should not be null");
         assertNotNull(response.getData(), "Batch data should not be null");
 
@@ -59,7 +59,7 @@ class BulkIngestionScenario extends GeneratedClientScenario {
                 .fileName("clients.csv")
                 .resourceType(GetPresignedUrlRequest.ResourceTypeEnum.CLIENTS);
 
-        var response = batchApi.bulkAsyncBatchesPresigned(batchId, req);
+        var response = integrationsApi.bulkAsyncBatchesPresigned(batchId, req);
         assertNotNull(response, "Presigned URL response should not be null");
         assertNotNull(response.getData(), "Presigned URL data should not be null");
 

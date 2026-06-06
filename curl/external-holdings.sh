@@ -199,13 +199,23 @@ PCA=$(curl -s -X POST "${API}/api/v1/portfolio-cash-accounts" \
 PORTFOLIO_CASH_ACCOUNT_ID=$(extract_id "$PCA")
 echo "Created Portfolio Cash Account link ID: ${PORTFOLIO_CASH_ACCOUNT_ID}"
 
-step "Create External Position (Apple stock via inline ISIN)"
+step "Reference a pre-registered Instrument"
+# v1 external positions reference a pre-registered Instrument by instrument_id.
+# Instruments are pre-registered (typically via bulk file); instrument_isin/name
+# are optional audit fields.
+INSTRUMENTS=$(curl -s "${API}/api/v1/instruments?per_page=1" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Accept: application/json")
+INSTRUMENT_ID=$(echo "$INSTRUMENTS" | python3 -c "import sys,json; d=json.load(sys.stdin)['data']; assert d, 'tenant has no pre-registered instruments'; print(d[0]['id'])")
+echo "Referencing Instrument ID: ${INSTRUMENT_ID}"
+
+step "Create External Position"
 EXT_POS=$(curl -s -X POST "${API}/api/v1/external-positions" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"portfolio_id\":${PORTFOLIO_ID},\"instrument_isin\":\"US0378331005\",\"instrument_name\":\"Apple Inc.\",\"quantity\":100,\"currency_id\":47,\"date\":\"$(date -u +%Y-%m-%d)\"}")
+    -d "{\"portfolio_id\":${PORTFOLIO_ID},\"instrument_id\":${INSTRUMENT_ID},\"quantity\":100,\"currency_id\":47,\"date\":\"$(date -u +%Y-%m-%d)\"}")
 
 EXTERNAL_POSITION_ID=$(extract_id "$EXT_POS")
 echo "Created External Position ID: ${EXTERNAL_POSITION_ID}"
@@ -225,7 +235,7 @@ step "Read External Position"
 EXT_POS_READ=$(curl -s "${API}/api/v1/external-positions/${EXTERNAL_POSITION_ID}" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Accept: application/json")
-echo "External Position: $(echo "$EXT_POS_READ" | python3 -c "import sys,json; d=json.load(sys.stdin)['data']; print(f\"id={d['id']} isin={d.get('instrument_isin','N/A')} qty={d.get('quantity','N/A')}\")")"
+echo "External Position: $(echo "$EXT_POS_READ" | python3 -c "import sys,json; d=json.load(sys.stdin)['data']; print(f\"id={d['id']} instrument_id={d.get('instrument_id','N/A')} qty={d.get('quantity','N/A')}\")")"
 
 step "Read External Balance"
 EXT_BAL_READ=$(curl -s "${API}/api/v1/external-balances/${EXTERNAL_BALANCE_ID}" \
@@ -245,7 +255,7 @@ UPDATE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "${API}/api/v1/ext
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
-    -d "{\"portfolio_id\":${PORTFOLIO_ID},\"instrument_isin\":\"US0378331005\",\"instrument_name\":\"Apple Inc.\",\"quantity\":200,\"currency_id\":47,\"date\":\"$(date -u +%Y-%m-%d)\"}")
+    -d "{\"portfolio_id\":${PORTFOLIO_ID},\"instrument_id\":${INSTRUMENT_ID},\"quantity\":200,\"currency_id\":47,\"date\":\"$(date -u +%Y-%m-%d)\"}")
 echo "HTTP ${UPDATE_STATUS}"
 assert_status "$UPDATE_STATUS" "200" "Update External Position"
 

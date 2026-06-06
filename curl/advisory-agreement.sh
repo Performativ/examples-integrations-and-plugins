@@ -5,17 +5,15 @@
 # Tells the advisory agreement signing story from the viewpoint of a
 # signing-provider plugin. The plugin:
 #   1. Receives an AdviceContext.Created webhook
-#   2. Queries members to discover who needs to sign
-#   3. Prepares documents and a signing envelope
-#   4. Creates and walks the agreement through signing states
-#   5. Posts signing progress at each stage
+#   2. Queries members to discover the advised clients
+#   3. Creates the advisory agreement (snapshots the members)
+#   4. Attaches a signing envelope to the agreement and runs the ceremony
+#   5. Walks the agreement through draft → pending_signature → signed
 #
-# Flow (22 steps):
-#   Setup (1-4) → Create advice context (5) → Query members (6) →
-#   Prepare envelope (7-11) → Create agreement (12-13) →
-#   Submit signing (14) → Progress: waiting (15) →
-#   Signed doc + mark party (16-18) → Progress: complete (19) →
-#   Mark agreement signed (20) → Verify (21) → Close (22)
+# v1 signing model: the agreement is created first, then the signing envelope
+# attaches to it via signable_type=advisory_agreement + signable_id. Envelope
+# documents carry a ceremony_role (input = to-be-signed, output = signed
+# result). submit-signing has no body; cancel-signing is the negative path.
 #
 # Cleanup: expire agreement → delete agreement (cascade-deletes
 # envelope) → delete advice context → delete client → delete person.
@@ -99,22 +97,55 @@ echo "Created Advice Context ID: ${CONTEXT_ID}, status: ${CONTEXT_STATUS}"
 
 echo ""
 echo "=== 6. Query Advice Context Members ==="
-# Plugin discovers who needs to sign by querying the member list.
-# Each member has a person_id (the signer) and client_id (the entity
-# being advised). The plugin uses person_id when adding signer parties
-# to the signing envelope.
+# Plugin discovers the advised entities by querying the member list.
+# In v1 the member resource is client-centric: each member exposes the
+# client_id being advised. The signer person is resolved from the client
+# (here, the person we created and linked above).
 MEMBERS=$(curl -s "${API}/api/v1/advice-contexts/${CONTEXT_ID}/clients" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Accept: application/json")
 
-MEMBER_PERSON_ID=$(echo "$MEMBERS" | python3 -c "import sys,json; print(json.load(sys.stdin)['data'][0]['person_id'])")
+MEMBER_CLIENT_ID=$(echo "$MEMBERS" | python3 -c "import sys,json; print(json.load(sys.stdin)['data'][0]['client_id'])")
 MEMBER_COUNT=$(echo "$MEMBERS" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['data']))")
-echo "Found ${MEMBER_COUNT} member(s), signer person_id: ${MEMBER_PERSON_ID}"
+echo "Found ${MEMBER_COUNT} member(s), advised client_id: ${MEMBER_CLIENT_ID}"
+# The v1 member resource is client-centric and exposes no person_id; the
+# signer person is resolved from the agreement's member_snapshot (step 7).
+
+# ─── Create the agreement (snapshots members), then attach an envelope ──
+# v1: the envelope references the agreement (signable), so the agreement
+# must exist first — the inverse of the pre-v1 flow.
+
+echo ""
+echo "=== 7. Create Advisory Agreement ==="
+AGREEMENT=$(curl -s -X POST "${API}/api/v1/advice-contexts/${CONTEXT_ID}/agreements" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json" \
+    -H "Idempotency-Key: $(uuidgen)" \
+    -d '{"version":"1.0","external_reference":"curl-s7-agreement"}')
+
+AGREEMENT_ID=$(echo "$AGREEMENT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
+AGREEMENT_STATUS=$(echo "$AGREEMENT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['status'])")
+echo "Created Agreement ID: ${AGREEMENT_ID}, status: ${AGREEMENT_STATUS}"
+
+# Resolve the signer from the agreement's member_snapshot. The platform freezes
+# (client_id, person_id, person_name) per member at creation and rejects
+# creation unless every member resolves to a person — the canonical, reliable
+# signer-discovery source.
+SIGNER_PERSON_ID=$(echo "$AGREEMENT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['member_snapshot'][0]['person_id'])")
+echo "Signer person_id (from member_snapshot): ${SIGNER_PERSON_ID}"
+
+echo ""
+echo "=== 8. Read Advisory Agreement ==="
+READ_AGREEMENT=$(curl -s "${API}/api/v1/advice-agreements/${AGREEMENT_ID}" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Accept: application/json")
+echo "Agreement status: $(echo "$READ_AGREEMENT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['status'])")"
 
 # ─── Plugin prepares the signing envelope ────────────────────────────
 
 echo ""
-echo "=== 7. Upload Source Document ==="
+echo "=== 9. Upload Source Document ==="
 # Plugin generates the advisory agreement document (e.g., from a
 # template engine) and uploads it via multipart POST.
 TMPFILE=$(mktemp /tmp/curl-s7-agreement-XXXXXX.txt)
@@ -133,45 +164,48 @@ DOC_ID=$(echo "$DOC_RESPONSE" | python3 -c "import sys,json; print(json.load(sys
 echo "Uploaded Document ID: ${DOC_ID}"
 
 echo ""
-echo "=== 8. Create Signing Envelope ==="
+echo "=== 10. Create Signing Envelope ==="
+# v1: the envelope attaches to a polymorphic signable —
+# signable_type=advisory_agreement + signable_id.
 ENVELOPE=$(curl -s -X POST "${API}/api/v1/signing-envelopes" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d '{"title":"Curl-S7 Agreement Envelope"}')
+    -d "{\"title\":\"Curl-S7 Agreement Envelope\",\"signable_type\":\"advisory_agreement\",\"signable_id\":${AGREEMENT_ID}}")
 
 ENVELOPE_ID=$(echo "$ENVELOPE" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 ENVELOPE_STATUS=$(echo "$ENVELOPE" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['status'])")
 echo "Created Envelope ID: ${ENVELOPE_ID}, status: ${ENVELOPE_STATUS}"
 
 echo ""
-echo "=== 9. Add Document to Envelope ==="
+echo "=== 11. Add Document to Envelope ==="
+# ceremony_role=input marks the document that will be signed.
 ADD_DOC_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1/signing-envelopes/${ENVELOPE_ID}/documents" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"document_id\":${DOC_ID},\"role\":\"source\"}")
+    -d "{\"document_id\":${DOC_ID},\"ceremony_role\":\"input\"}")
 echo "HTTP ${ADD_DOC_STATUS}"
 if [ "$ADD_DOC_STATUS" != "201" ]; then echo "ERROR: Expected 201, got ${ADD_DOC_STATUS}"; exit 1; fi
 
 echo ""
-echo "=== 10. Add Signer Party ==="
-# Uses person_id discovered from the member query (step 6), not the
-# hard-coded person_id from setup. In production, the plugin would
-# iterate all members and add each as a signer party.
+echo "=== 12. Add Signer Party ==="
+# Uses the signer person resolved from the advice context member (step 6).
+# In production, the plugin would iterate all members and add each
+# client's person(s) as a signer party.
 ADD_PARTY_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1/signing-envelopes/${ENVELOPE_ID}/parties" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"person_id\":${MEMBER_PERSON_ID},\"role\":\"signer\"}")
+    -d "{\"person_id\":${SIGNER_PERSON_ID},\"role\":\"signer\"}")
 echo "HTTP ${ADD_PARTY_STATUS}"
 if [ "$ADD_PARTY_STATUS" != "201" ]; then echo "ERROR: Expected 201, got ${ADD_PARTY_STATUS}"; exit 1; fi
 
 echo ""
-echo "=== 11. Send Envelope ==="
+echo "=== 13. Send Envelope ==="
 SEND_RESPONSE=$(curl -s -X POST "${API}/api/v1/signing-envelopes/${ENVELOPE_ID}/send" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
@@ -182,33 +216,13 @@ SEND_RESPONSE=$(curl -s -X POST "${API}/api/v1/signing-envelopes/${ENVELOPE_ID}/
 SEND_STATUS=$(echo "$SEND_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['status'])")
 echo "Envelope status after send: ${SEND_STATUS}"
 
-# ─── Create and walk the agreement through signing ───────────────────
-
-echo ""
-echo "=== 12. Create Advisory Agreement ==="
-AGREEMENT=$(curl -s -X POST "${API}/api/v1/advice-contexts/${CONTEXT_ID}/agreements" \
-    -H "Authorization: Bearer ${TOKEN}" \
-    -H "Content-Type: application/json" \
-    -H "Accept: application/json" \
-    -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"version\":\"1.0\",\"signing_envelope_id\":${ENVELOPE_ID}}")
-
-AGREEMENT_ID=$(echo "$AGREEMENT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
-AGREEMENT_STATUS=$(echo "$AGREEMENT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['status'])")
-echo "Created Agreement ID: ${AGREEMENT_ID}, status: ${AGREEMENT_STATUS}"
-
-echo ""
-echo "=== 13. Read Advisory Agreement ==="
-READ_AGREEMENT=$(curl -s "${API}/api/v1/advice-agreements/${AGREEMENT_ID}" \
-    -H "Authorization: Bearer ${TOKEN}" \
-    -H "Accept: application/json")
-echo "Agreement status: $(echo "$READ_AGREEMENT" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['status'])")"
+# ─── Walk the agreement through signing ──────────────────────────────
 
 echo ""
 echo "=== 14. Submit Signing (draft → pending_signature) ==="
-# Idempotency: a replayed submit-signing request returns the cached
-# response with an Idempotent-Replayed header. Safe to retry on
-# network timeout.
+# v1: submit-signing is a pure state transition and accepts no body fields.
+# Idempotency travels via the Idempotency-Key header; a replayed request
+# returns the cached response. Safe to retry on network timeout.
 #
 # Plugin webhook: AdvisoryAgreement.Updated
 #   { "state": { "current": "pending_signature", "previous": "draft" } }
@@ -222,29 +236,13 @@ SUBMIT_RESPONSE=$(curl -s -X POST \
 
 echo "Submit-signing status: $(echo "$SUBMIT_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['status'])")"
 
-echo ""
-echo "=== 15. Post Signing Progress (initial) ==="
-# Idempotency: safe to retry if plugin crashes mid-flight. The platform
-# stores the latest progress snapshot; retries overwrite with the same data.
-#
-# The plugin posts a progress update showing 0 of 1 signers have signed.
-# This surfaces in the advisor UI as a substatus on the agreement.
-PROGRESS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1/advice-agreements/${AGREEMENT_ID}/report-signing-progress" \
-    -H "Authorization: Bearer ${TOKEN}" \
-    -H "Content-Type: application/json" \
-    -H "Accept: application/json" \
-    -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"substatus\":\"Waiting for signers\",\"signing_progress\":{\"provider\":\"example-signing-provider\",\"status\":\"in_progress\",\"signed_count\":0,\"total_signers\":1,\"signers\":[{\"name\":\"Curl S7-AdvisoryAgreement\",\"email\":\"curl-s7@example.com\",\"status\":\"pending\"}]}}")
-echo "HTTP ${PROGRESS_STATUS}"
-if [ "$PROGRESS_STATUS" != "200" ]; then echo "ERROR: Expected 200, got ${PROGRESS_STATUS}"; exit 1; fi
-
 # ─── Signing ceremony ────────────────────────────────────────────────
 # Order matters: upload signed doc → add to envelope → mark party signed.
 # Marking the last party auto-completes the envelope, which locks it —
 # no documents can be added after that.
 
 echo ""
-echo "=== 16. Upload Signed Document ==="
+echo "=== 15. Upload Signed Document ==="
 # The signing provider has collected all signatures. The plugin
 # downloads the signed copy from the provider and uploads it.
 SIGNED_TMPFILE=$(mktemp /tmp/curl-s7-signed-XXXXXX.txt)
@@ -263,21 +261,22 @@ SIGNED_DOC_ID=$(echo "$SIGNED_DOC_RESPONSE" | python3 -c "import sys,json; print
 echo "Uploaded Signed Document ID: ${SIGNED_DOC_ID}"
 
 echo ""
-echo "=== 17. Add Signed Document to Envelope ==="
+echo "=== 16. Add Signed Document to Envelope ==="
 # IMPORTANT: add the signed document BEFORE marking the signer party
-# as signed (step 18). Marking the last party auto-completes the
+# as signed (step 17). Marking the last party auto-completes the
 # envelope, which locks it — no more documents can be added after that.
+# ceremony_role=output marks the resulting signed document.
 ADD_SIGNED_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1/signing-envelopes/${ENVELOPE_ID}/documents" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"document_id\":${SIGNED_DOC_ID},\"role\":\"signed\"}")
+    -d "{\"document_id\":${SIGNED_DOC_ID},\"ceremony_role\":\"output\"}")
 echo "HTTP ${ADD_SIGNED_STATUS}"
 if [ "$ADD_SIGNED_STATUS" != "201" ]; then echo "ERROR: Expected 201, got ${ADD_SIGNED_STATUS}"; exit 1; fi
 
 echo ""
-echo "=== 18. Mark Signer Party Signed ==="
+echo "=== 17. Mark Signer Party Signed ==="
 # Idempotency: prevents double-signing if the signing provider's
 # callback fires twice. The platform returns the same response.
 PARTY_ID=$(curl -s "${API}/api/v1/signing-envelopes/${ENVELOPE_ID}" \
@@ -295,22 +294,9 @@ echo "HTTP ${MARK_PARTY_STATUS}"
 if [ "$MARK_PARTY_STATUS" != "200" ]; then echo "ERROR: Expected 200, got ${MARK_PARTY_STATUS}"; exit 1; fi
 
 echo ""
-echo "=== 19. Post Signing Progress (complete) ==="
-# All parties have signed. The plugin posts a final progress update
-# so the advisor UI reflects completion.
-SIGNED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-PROGRESS2_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1/advice-agreements/${AGREEMENT_ID}/report-signing-progress" \
-    -H "Authorization: Bearer ${TOKEN}" \
-    -H "Content-Type: application/json" \
-    -H "Accept: application/json" \
-    -H "Idempotency-Key: $(uuidgen)" \
-    -d "{\"substatus\":\"All parties signed\",\"signing_progress\":{\"provider\":\"example-signing-provider\",\"status\":\"completed\",\"signed_count\":1,\"total_signers\":1,\"signers\":[{\"name\":\"Curl S7-AdvisoryAgreement\",\"email\":\"curl-s7@example.com\",\"status\":\"signed\",\"signed_at\":\"${SIGNED_AT}\"}]}}")
-echo "HTTP ${PROGRESS2_STATUS}"
-if [ "$PROGRESS2_STATUS" != "200" ]; then echo "ERROR: Expected 200, got ${PROGRESS2_STATUS}"; exit 1; fi
-
-echo ""
-echo "=== 20. Mark Agreement Signed (pending_signature → signed) ==="
-# Idempotency: prevents double-signing if callback fires twice.
+echo "=== 18. Mark Agreement Signed (pending_signature → signed) ==="
+# v1: mark-signed optionally accepts signed_document_id (stored in metadata
+# for audit) and external_reference. Idempotency via header.
 #
 # Plugin webhook: AdvisoryAgreement.Updated
 #   { "state": { "current": "signed", "previous": "pending_signature" } }
@@ -325,7 +311,7 @@ MARK_RESPONSE=$(curl -s -X POST \
 echo "Mark-signed status: $(echo "$MARK_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['status'])")"
 
 echo ""
-echo "=== 21. Read Agreement (final) ==="
+echo "=== 19. Read Agreement (final) ==="
 FINAL=$(curl -s "${API}/api/v1/advice-agreements/${AGREEMENT_ID}" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Accept: application/json")
@@ -333,7 +319,7 @@ FINAL_STATUS=$(echo "$FINAL" | python3 -c "import sys,json; print(json.load(sys.
 echo "Agreement status: ${FINAL_STATUS}"
 
 echo ""
-echo "=== 22. Expire Agreement ==="
+echo "=== 20. Expire Agreement ==="
 EXPIRE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API}/api/v1/advice-agreements/${AGREEMENT_ID}/expire" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
@@ -343,25 +329,25 @@ echo "HTTP ${EXPIRE_STATUS}"
 if [ "$EXPIRE_STATUS" != "200" ]; then echo "ERROR: Expected 200, got ${EXPIRE_STATUS}"; exit 1; fi
 
 echo ""
-echo "=== 23. Delete Agreement ==="
+echo "=== 21. Delete Agreement ==="
 DEL_AGREE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "${API}/api/v1/advice-agreements/${AGREEMENT_ID}" \
     -H "Authorization: Bearer ${TOKEN}")
 echo "HTTP ${DEL_AGREE}"
 
 echo ""
-echo "=== 24. Delete Advice Context ==="
+echo "=== 22. Delete Advice Context ==="
 DEL_CTX=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "${API}/api/v1/advice-contexts/${CONTEXT_ID}" \
     -H "Authorization: Bearer ${TOKEN}")
 echo "HTTP ${DEL_CTX}"
 
 echo ""
-echo "=== 25. Delete Client ==="
+echo "=== 23. Delete Client ==="
 DEL_CLIENT=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "${API}/api/v1/clients/${CLIENT_ID}" \
     -H "Authorization: Bearer ${TOKEN}")
 echo "HTTP ${DEL_CLIENT}"
 
 echo ""
-echo "=== 26. Delete Person ==="
+echo "=== 24. Delete Person ==="
 DEL_PERSON=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "${API}/api/v1/persons/${PERSON_ID}" \
     -H "Authorization: Bearer ${TOKEN}")
 echo "HTTP ${DEL_PERSON}"

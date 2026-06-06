@@ -10,8 +10,6 @@ import org.junit.jupiter.api.*;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -20,10 +18,17 @@ import static org.junit.jupiter.api.Assertions.*;
  * S7: Advisory Agreement — Signing Provider Plugin Perspective (generated client).
  *
  * <p>Tells the advisory agreement signing story from the viewpoint of a
- * signing-provider plugin. Uses the typed generated client for all operations
- * except document upload (multipart), advice context creation (complex
- * members array), and signing progress (spec types signing_progress as
- * array&lt;string&gt; but API accepts a richer object).
+ * signing-provider plugin, using the typed generated client for all operations
+ * except document upload (multipart) and advice context creation (complex
+ * members array).
+ *
+ * <p>v1 signing model: the advisory agreement is created first (snapshotting
+ * the context members), then a signing envelope is attached to it via the
+ * polymorphic {@code signable_type=advisory_agreement} + {@code signable_id}.
+ * Documents carry a {@code ceremony_role} ({@code input} = to-be-signed,
+ * {@code output} = signed result). The agreement walks the state machine
+ * {@code draft → pending_signature → signed} via {@code submit-signing} and
+ * {@code mark-signed}; {@code cancel-signing} is the negative path.
  *
  * <p>Cleanup: expire agreement → delete agreement (cascade-deletes envelope) →
  * delete advice context → delete client → delete person.
@@ -43,7 +48,7 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
     private static long personId;
     private static long clientId;
     private static long adviceContextId;
-    private static long memberPersonId;
+    private static long signerPersonId;
     private static long documentId;
     private static long envelopeId;
     private static long agreementId;
@@ -152,9 +157,10 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
     @Test
     @Order(SETUP + 6)
     void queryAdviceContextMembers() throws ApiException {
-        // Plugin discovers who needs to sign by querying the member list.
-        // Each member has a personId (the signer) and clientId (the entity
-        // being advised). The plugin uses personId to add signer parties.
+        // Plugin discovers the advised entities by querying the member list.
+        // In v1 the member resource is client-centric: each member exposes the
+        // clientId being advised. The signer person is resolved from the client
+        // (here, the person we created and linked above).
         assertTrue(adviceContextId > 0, "Advice context must be created first");
 
         var response = adviceApi.adviceContextsClientsIndex(
@@ -165,10 +171,60 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
                 "At least one member should exist in the advice context");
 
         AdviceContextMemberResource member = response.getData().get(0);
-        memberPersonId = member.getPersonId();
-        assertTrue(memberPersonId > 0, "Member person_id should be positive");
-        assertEquals(personId, memberPersonId,
-                "Member person_id should match the person we added");
+        assertEquals(clientId, member.getClientId(),
+                "Member client_id should match the client we added");
+        // The v1 member resource is client-centric and exposes no person_id;
+        // the signer person is resolved from the agreement's member_snapshot
+        // once the agreement is created (see createAdvisoryAgreement).
+    }
+
+    // ─── Create the agreement (snapshots members), then attach an envelope ──
+    // v1: the envelope references the agreement (signable), so the agreement
+    // must exist first — the inverse of the pre-v1 flow.
+
+    @Test
+    @Order(SETUP + 7)
+    void createAdvisoryAgreement() throws ApiException {
+        assertTrue(adviceContextId > 0, "Advice context must be created first");
+
+        var req = new StoreAdvisoryAgreementRequest()
+                .version("1.0")
+                .externalReference("gen-s7-agreement");
+
+        var response = adviceApi.v1AdviceAgreementsStoreForContext(
+                String.valueOf(adviceContextId), idempotencyKey(), req);
+        assertNotNull(response);
+        assertNotNull(response.getData());
+
+        agreementId = response.getData().getId();
+        assertTrue(agreementId > 0, "Agreement ID should be positive");
+        assertEquals("draft", response.getData().getStatus().getValue(),
+                "New advisory agreement should be in draft status");
+
+        // Resolve the signer from the agreement's member_snapshot. The platform
+        // freezes (client_id, person_id, person_name) per member at creation and
+        // rejects creation unless every member resolves to a person — so this is
+        // the canonical, reliable signer-discovery source (member_snapshot is a
+        // free-form object in the spec, so it is read via JSON).
+        JsonNode snapshot = objectMapper.valueToTree(response.getData().getMemberSnapshot());
+        assertTrue(snapshot.isArray() && !snapshot.isEmpty(),
+                "member_snapshot should be a non-empty array");
+        signerPersonId = snapshot.get(0).path("person_id").asLong();
+        assertEquals(personId, signerPersonId,
+                "Snapshot signer person should match the linked person");
+    }
+
+    @Test
+    @Order(SETUP + 8)
+    void readAdvisoryAgreement() throws ApiException {
+        assertTrue(agreementId > 0, "Agreement must be created first");
+
+        var response = adviceApi.v1AdviceAgreementsShow(
+                String.valueOf(agreementId), null);
+        assertNotNull(response);
+        assertEquals(agreementId, response.getData().getId());
+        assertEquals("draft", response.getData().getStatus().getValue());
+        assertEquals("1.0", response.getData().getVersion());
     }
 
     // ─── Plugin prepares the signing envelope ───────────────────────
@@ -197,10 +253,16 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
     @Test
     @Order(ENVELOPE + 2)
     void createSigningEnvelope() throws ApiException {
-        var req = new StoreSigningEnvelopeRequest()
-                .title("Gen-S7 Agreement Envelope");
+        assertTrue(agreementId > 0, "Agreement must be created first");
 
-        var response = adviceApi.signingEnvelopesStore(idempotencyKey(), req);
+        // v1: the envelope attaches to a polymorphic signable. For an advisory
+        // agreement that is signable_type=advisory_agreement + signable_id.
+        var req = new StoreSigningEnvelopeRequest()
+                .title("Gen-S7 Agreement Envelope")
+                .signableType(StoreSigningEnvelopeRequest.SignableTypeEnum.ADVISORY_AGREEMENT)
+                .signableId(agreementId);
+
+        var response = adviceApi.signingEnvelopesStore(req, idempotencyKey());
         assertNotNull(response);
         assertNotNull(response.getData());
 
@@ -214,9 +276,10 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
         assertTrue(envelopeId > 0, "Envelope must be created first");
         assertTrue(documentId > 0, "Document must be uploaded first");
 
+        // ceremony_role=input marks the document that will be signed.
         var req = new AddDocumentToEnvelopeRequest()
                 .documentId(documentId)
-                .role(AddDocumentToEnvelopeRequest.RoleEnum.SOURCE);
+                .ceremonyRole(AddDocumentToEnvelopeRequest.CeremonyRoleEnum.INPUT);
 
         adviceApi.signingEnvelopesDocumentsStore(
                 String.valueOf(envelopeId), req, idempotencyKey());
@@ -225,14 +288,14 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
     @Test
     @Order(ENVELOPE + 4)
     void addSignerParty() throws ApiException {
-        // Uses person_id discovered from the member query, not the hard-coded
-        // person_id from setup. In production, the plugin would iterate all
-        // members and add each as a signer party.
+        // Uses the signer person resolved from the agreement's member_snapshot.
+        // In production, the plugin would iterate all snapshot members and add
+        // each person as a signer party.
         assertTrue(envelopeId > 0, "Envelope must be created first");
-        assertTrue(memberPersonId > 0, "Member person_id must be discovered first");
+        assertTrue(signerPersonId > 0, "Signer person_id must be resolved first");
 
         var req = new AddPartyToEnvelopeRequest()
-                .personId(memberPersonId)
+                .personId(signerPersonId)
                 .role(AddPartyToEnvelopeRequest.RoleEnum.SIGNER);
 
         adviceApi.signingEnvelopesPartiesStore(
@@ -248,69 +311,16 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
                 String.valueOf(envelopeId), idempotencyKey());
     }
 
-    // ─── Create and walk the agreement through signing ──────────────
+    // ─── Walk the agreement through signing ─────────────────────────
 
     @Test
     @Order(AGREEMENT + 1)
-    void createAdvisoryAgreement() throws ApiException {
-        assertTrue(adviceContextId > 0, "Advice context must be created first");
-        assertTrue(envelopeId > 0, "Signing envelope must be created first");
-
-        var req = new StoreAdvisoryAgreementRequest()
-                .version("1.0")
-                .signingEnvelopeId(envelopeId);
-
-        var response = adviceApi.v1AdviceAgreementsStoreForContext(
-                String.valueOf(adviceContextId), idempotencyKey(), req);
-        assertNotNull(response);
-        assertNotNull(response.getData());
-
-        agreementId = response.getData().getId();
-        assertTrue(agreementId > 0, "Agreement ID should be positive");
-        assertEquals("draft", response.getData().getStatus().getValue(),
-                "New advisory agreement should be in draft status");
-    }
-
-    @Test
-    @Order(AGREEMENT + 2)
-    void readAdvisoryAgreement() throws ApiException {
-        assertTrue(agreementId > 0, "Agreement must be created first");
-
-        var response = adviceApi.v1AdviceAgreementsShow(
-                String.valueOf(agreementId), null);
-        assertNotNull(response);
-        assertEquals(agreementId, response.getData().getId());
-        assertEquals("draft", response.getData().getStatus().getValue());
-        assertEquals("1.0", response.getData().getVersion());
-    }
-
-    @Test
-    @Order(AGREEMENT + 3)
     void submitSigning() throws ApiException {
         assertTrue(agreementId > 0, "Agreement must be created first");
 
-        var req = new SubmitSigningAdvisoryAgreementRequest();
-
+        // v1: submit-signing has no body; idempotency travels via the header.
         adviceApi.advisoryAgreementActionSubmitSigning(
-                String.valueOf(agreementId), idempotencyKey(), req);
-    }
-
-    @Test
-    @Order(AGREEMENT + 4)
-    void postSigningProgressInitial() throws Exception {
-        // Raw HTTP: the spec types signing_progress as array<string> but the API
-        // actually accepts a richer object with provider/status/signers fields.
-        // Using raw HTTP until the spec catches up.
-        assertTrue(agreementId > 0, "Agreement must be created first");
-
-        HttpResponse<String> response = apiPost(token,
-                "/api/v1/advice-agreements/" + agreementId + "/report-signing-progress",
-                """
-                {"substatus":"Waiting for signers","signing_progress":{"provider":"example-signing-provider","status":"in_progress","signed_count":0,"total_signers":1,"signers":[{"name":"Gen S7-AdvisoryAgreement","email":"gen-s7@example.com","status":"pending"}]}}
-                """);
-
-        assertEquals(200, response.statusCode(),
-                "Report signing progress should return 200, got: " + response.statusCode() + " " + response.body());
+                String.valueOf(agreementId), idempotencyKey());
     }
 
     // ─── Signing ceremony ───────────────────────────────────────────
@@ -319,7 +329,7 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
     // it — no documents can be added after that.
 
     @Test
-    @Order(AGREEMENT + 5)
+    @Order(AGREEMENT + 2)
     void uploadSignedDocument() throws Exception {
         Path tempFile = Files.createTempFile("gen-s7-signed-", ".txt");
         Files.writeString(tempFile, "Signed Advisory Agreement - Gen S7");
@@ -339,21 +349,22 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(AGREEMENT + 6)
+    @Order(AGREEMENT + 3)
     void addSignedDocumentToEnvelope() throws ApiException {
         assertTrue(envelopeId > 0, "Envelope must be created first");
         assertTrue(signedDocId > 0, "Signed document must be uploaded first");
 
+        // ceremony_role=output marks the resulting signed document.
         var req = new AddDocumentToEnvelopeRequest()
                 .documentId(signedDocId)
-                .role(AddDocumentToEnvelopeRequest.RoleEnum.SIGNED);
+                .ceremonyRole(AddDocumentToEnvelopeRequest.CeremonyRoleEnum.OUTPUT);
 
         adviceApi.signingEnvelopesDocumentsStore(
                 String.valueOf(envelopeId), req, idempotencyKey());
     }
 
     @Test
-    @Order(AGREEMENT + 7)
+    @Order(AGREEMENT + 4)
     void markSignerPartySigned() throws ApiException {
         assertTrue(envelopeId > 0, "Envelope must be created first");
 
@@ -369,37 +380,18 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
     }
 
     @Test
-    @Order(AGREEMENT + 8)
-    void postSigningProgressComplete() throws Exception {
-        // Raw HTTP: same reason as postSigningProgressInitial.
-        assertTrue(agreementId > 0, "Agreement must be created first");
-
-        String signedAt = OffsetDateTime.now().toString();
-        HttpResponse<String> response = apiPost(token,
-                "/api/v1/advice-agreements/" + agreementId + "/report-signing-progress",
-                String.format("""
-                {"substatus":"All parties signed","signing_progress":{"provider":"example-signing-provider","status":"completed","signed_count":1,"total_signers":1,"signers":[{"name":"Gen S7-AdvisoryAgreement","email":"gen-s7@example.com","status":"signed","signed_at":"%s"}]}}
-                """, signedAt));
-
-        assertEquals(200, response.statusCode(),
-                "Report signing progress should return 200, got: " + response.statusCode() + " " + response.body());
-    }
-
-    @Test
-    @Order(AGREEMENT + 9)
-    void markAgreementSigned() throws Exception {
+    @Order(AGREEMENT + 5)
+    void markAgreementSigned() throws ApiException {
         assertTrue(agreementId > 0, "Agreement must be created first");
         assertTrue(signedDocId > 0, "Signed document must be uploaded first");
 
-        HttpResponse<String> response = apiPost(token,
-                "/api/v1/advice-agreements/" + agreementId + "/mark-signed",
-                String.format("""
-                {"signed_document_id":%d}
-                """, signedDocId));
+        // v1: mark-signed optionally accepts signed_document_id (stored in
+        // metadata for audit) and transitions pending_signature → signed.
+        var req = new MarkSignedAdvisoryAgreementRequest()
+                .signedDocumentId(signedDocId);
 
-        assertTrue(response.statusCode() < 300,
-                "Mark-signed should succeed (pending_signature → signed), got: "
-                        + response.statusCode() + " " + response.body());
+        adviceApi.advisoryAgreementActionMarkSigned(
+                String.valueOf(agreementId), idempotencyKey(), req);
     }
 
     @Test
@@ -421,8 +413,10 @@ class AdvisoryAgreementScenario extends GeneratedClientScenario {
     void expireAgreement() throws ApiException {
         assertTrue(agreementId > 0, "Agreement must be created first");
 
+        // expire takes no body — use the 2-arg overload (passing null would
+        // bind to the additionalHeaders Map overload and NPE).
         adviceApi.advisoryAgreementActionExpire(
-                String.valueOf(agreementId), idempotencyKey(), null);
+                String.valueOf(agreementId), idempotencyKey());
     }
 
     @Test

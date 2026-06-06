@@ -16,9 +16,16 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * <p>Tells the advisory agreement signing story from the viewpoint of a
  * signing-provider plugin. The plugin receives an AdviceContext.Created
- * webhook, queries members to discover signers, prepares a signing envelope,
- * posts signing progress at each stage, and walks the agreement through
- * {@code draft} → {@code pending_signature} → {@code signed}.
+ * webhook, queries members to discover the advised clients, prepares a signing
+ * envelope and walks the agreement through {@code draft} →
+ * {@code pending_signature} → {@code signed}.
+ *
+ * <p>v1 signing model: the advisory agreement is created first (snapshotting
+ * the context members), then the signing envelope is attached to it via
+ * {@code signable_type=advisory_agreement} + {@code signable_id}. Documents
+ * carry a {@code ceremony_role} ({@code input} = to-be-signed,
+ * {@code output} = signed result). {@code submit-signing} has no body and
+ * {@code cancel-signing} is the negative path.
  *
  * <p>Uses raw HTTP throughout.
  *
@@ -35,7 +42,7 @@ class AdvisoryAgreementScenario extends BaseScenario {
     private static int personId;
     private static int clientId;
     private static int adviceContextId;
-    private static int memberPersonId;
+    private static int signerPersonId;
     private static int documentId;
     private static int envelopeId;
     private static int agreementId;
@@ -134,9 +141,10 @@ class AdvisoryAgreementScenario extends BaseScenario {
     @Test
     @Order(6)
     void queryAdviceContextMembers() throws Exception {
-        // Plugin discovers who needs to sign by querying the member list.
-        // Each member has a person_id (the signer) and client_id (the entity
-        // being advised). The plugin uses person_id to add signer parties.
+        // Plugin discovers the advised entities by querying the member list.
+        // In v1 the member resource is client-centric: each member exposes the
+        // client_id being advised. The signer person is resolved from the
+        // client (here, the person we created and linked above).
         assertTrue(adviceContextId > 0, "Advice context must be created first");
 
         HttpResponse<String> response = apiGet(token,
@@ -147,16 +155,67 @@ class AdvisoryAgreementScenario extends BaseScenario {
         JsonNode data = objectMapper.readTree(response.body()).path("data");
         assertTrue(data.size() > 0, "At least one member should exist");
 
-        memberPersonId = data.get(0).get("person_id").asInt();
-        assertTrue(memberPersonId > 0, "Member person_id should be positive");
-        assertEquals(personId, memberPersonId,
-                "Member person_id should match the person we added");
+        assertEquals(clientId, data.get(0).get("client_id").asInt(),
+                "Member client_id should match the client we added");
+        // The v1 member resource is client-centric and exposes no person_id;
+        // the signer person is resolved from the agreement's member_snapshot
+        // once the agreement is created (see createAdvisoryAgreement).
+    }
+
+    // ─── Create the agreement (snapshots members), then attach an envelope ──
+    // v1: the envelope references the agreement (signable), so the agreement
+    // must exist first — the inverse of the pre-v1 flow.
+
+    @Test
+    @Order(7)
+    void createAdvisoryAgreement() throws Exception {
+        assertTrue(adviceContextId > 0, "Advice context must be created first");
+
+        HttpResponse<String> response = apiPost(token,
+                "/api/v1/advice-contexts/" + adviceContextId + "/agreements",
+                """
+                {"version":"1.0","external_reference":"manual-s7-agreement"}
+                """);
+
+        assertTrue(response.statusCode() < 300,
+                "Create advisory agreement should succeed, got: " + response.statusCode() + " " + response.body());
+
+        JsonNode data = objectMapper.readTree(response.body()).path("data");
+        agreementId = data.get("id").asInt();
+        assertTrue(agreementId > 0, "Agreement ID should be positive");
+        assertEquals("draft", data.get("status").asText(),
+                "New advisory agreement should be in draft status");
+
+        // Resolve the signer from the agreement's member_snapshot. The platform
+        // freezes (client_id, person_id, person_name) per member at creation and
+        // rejects creation unless every member resolves to a person — so this is
+        // the canonical, reliable signer-discovery source.
+        JsonNode snapshot = data.path("member_snapshot");
+        assertTrue(snapshot.isArray() && snapshot.size() > 0,
+                "member_snapshot should be a non-empty array");
+        signerPersonId = snapshot.get(0).path("person_id").asInt();
+        assertEquals(personId, signerPersonId,
+                "Snapshot signer person should match the linked person");
+    }
+
+    @Test
+    @Order(8)
+    void readAdvisoryAgreement() throws Exception {
+        assertTrue(agreementId > 0, "Agreement must be created first");
+
+        HttpResponse<String> response = apiGet(token, "/api/v1/advice-agreements/" + agreementId);
+        assertEquals(200, response.statusCode());
+
+        JsonNode data = objectMapper.readTree(response.body()).path("data");
+        assertEquals(agreementId, data.get("id").asInt());
+        assertEquals("draft", data.get("status").asText());
+        assertEquals("1.0", data.get("version").asText());
     }
 
     // ─── Plugin prepares the signing envelope ───────────────────────
 
     @Test
-    @Order(7)
+    @Order(9)
     void uploadSourceDocument() throws Exception {
         // Plugin generates the advisory agreement document (e.g., from a
         // template engine) and uploads it via multipart POST.
@@ -179,12 +238,16 @@ class AdvisoryAgreementScenario extends BaseScenario {
     }
 
     @Test
-    @Order(8)
+    @Order(10)
     void createSigningEnvelope() throws Exception {
+        assertTrue(agreementId > 0, "Agreement must be created first");
+
+        // v1: the envelope attaches to a polymorphic signable —
+        // signable_type=advisory_agreement + signable_id.
         HttpResponse<String> response = apiPost(token, "/api/v1/signing-envelopes",
-                """
-                {"title":"Manual-S7 Agreement Envelope"}
-                """);
+                String.format("""
+                {"title":"Manual-S7 Agreement Envelope","signable_type":"advisory_agreement","signable_id":%d}
+                """, agreementId));
 
         assertTrue(response.statusCode() < 300,
                 "Create signing envelope should succeed, got: " + response.statusCode() + " " + response.body());
@@ -196,15 +259,16 @@ class AdvisoryAgreementScenario extends BaseScenario {
     }
 
     @Test
-    @Order(9)
+    @Order(11)
     void addDocumentToEnvelope() throws Exception {
         assertTrue(envelopeId > 0, "Envelope must be created first");
         assertTrue(documentId > 0, "Document must be uploaded first");
 
+        // ceremony_role=input marks the document that will be signed.
         HttpResponse<String> response = apiPost(token,
                 "/api/v1/signing-envelopes/" + envelopeId + "/documents",
                 String.format("""
-                {"document_id":%d,"role":"source"}
+                {"document_id":%d,"ceremony_role":"input"}
                 """, documentId));
 
         assertTrue(response.statusCode() < 300,
@@ -212,26 +276,26 @@ class AdvisoryAgreementScenario extends BaseScenario {
     }
 
     @Test
-    @Order(10)
+    @Order(12)
     void addSignerParty() throws Exception {
-        // Uses person_id discovered from the member query (step 6), not
-        // the hard-coded person_id from setup. In production, the plugin
-        // would iterate all members and add each as a signer party.
+        // Uses the signer person resolved from the agreement's member_snapshot
+        // (step 7). In production, the plugin would iterate all snapshot members
+        // and add each person as a signer party.
         assertTrue(envelopeId > 0, "Envelope must be created first");
-        assertTrue(memberPersonId > 0, "Member person_id must be discovered first");
+        assertTrue(signerPersonId > 0, "Signer person_id must be resolved first");
 
         HttpResponse<String> response = apiPost(token,
                 "/api/v1/signing-envelopes/" + envelopeId + "/parties",
                 String.format("""
                 {"person_id":%d,"role":"signer"}
-                """, memberPersonId));
+                """, signerPersonId));
 
         assertTrue(response.statusCode() < 300,
                 "Add signer party to envelope should succeed, got: " + response.statusCode() + " " + response.body());
     }
 
     @Test
-    @Order(11)
+    @Order(13)
     void sendEnvelope() throws Exception {
         assertTrue(envelopeId > 0, "Envelope must be created first");
 
@@ -246,50 +310,14 @@ class AdvisoryAgreementScenario extends BaseScenario {
         assertEquals("sent", data.get("status").asText(), "Envelope should transition to 'sent'");
     }
 
-    // ─── Create and walk the agreement through signing ──────────────
-
-    @Test
-    @Order(12)
-    void createAdvisoryAgreement() throws Exception {
-        assertTrue(adviceContextId > 0, "Advice context must be created first");
-        assertTrue(envelopeId > 0, "Signing envelope must be created first");
-
-        HttpResponse<String> response = apiPost(token,
-                "/api/v1/advice-contexts/" + adviceContextId + "/agreements",
-                String.format("""
-                {"version":"1.0","signing_envelope_id":%d}
-                """, envelopeId));
-
-        assertTrue(response.statusCode() < 300,
-                "Create advisory agreement should succeed, got: " + response.statusCode() + " " + response.body());
-
-        JsonNode data = objectMapper.readTree(response.body()).path("data");
-        agreementId = data.get("id").asInt();
-        assertTrue(agreementId > 0, "Agreement ID should be positive");
-        assertEquals("draft", data.get("status").asText(),
-                "New advisory agreement should be in draft status");
-    }
-
-    @Test
-    @Order(13)
-    void readAdvisoryAgreement() throws Exception {
-        assertTrue(agreementId > 0, "Agreement must be created first");
-
-        HttpResponse<String> response = apiGet(token, "/api/v1/advice-agreements/" + agreementId);
-        assertEquals(200, response.statusCode());
-
-        JsonNode data = objectMapper.readTree(response.body()).path("data");
-        assertEquals(agreementId, data.get("id").asInt());
-        assertEquals("draft", data.get("status").asText());
-        assertEquals("1.0", data.get("version").asText());
-    }
+    // ─── Walk the agreement through signing ─────────────────────────
 
     @Test
     @Order(14)
     void submitSigning() throws Exception {
         // Idempotency: a replayed submit-signing request returns the cached
         // response with an Idempotent-Replayed header. Safe to retry on
-        // network timeout.
+        // network timeout. v1: submit-signing takes no body.
         //
         // Plugin webhook: AdvisoryAgreement.Updated
         //   { "state": { "current": "pending_signature", "previous": "draft" } }
@@ -304,33 +332,13 @@ class AdvisoryAgreementScenario extends BaseScenario {
                         + response.statusCode() + " " + response.body());
     }
 
-    @Test
-    @Order(15)
-    void postSigningProgressInitial() throws Exception {
-        // Idempotency: safe to retry if plugin crashes mid-flight. The platform
-        // stores the latest progress snapshot; retries overwrite with the same data.
-        //
-        // The plugin posts a progress update showing 0 of 1 signers have signed.
-        // This surfaces in the advisor UI as a substatus on the agreement.
-        assertTrue(agreementId > 0, "Agreement must be created first");
-
-        HttpResponse<String> response = apiPost(token,
-                "/api/v1/advice-agreements/" + agreementId + "/report-signing-progress",
-                """
-                {"substatus":"Waiting for signers","signing_progress":{"provider":"example-signing-provider","status":"in_progress","signed_count":0,"total_signers":1,"signers":[{"name":"Manual S7-AdvisoryAgreement","email":"manual-s7@example.com","status":"pending"}]}}
-                """);
-
-        assertTrue(response.statusCode() < 300,
-                "Update signing progress should succeed, got: " + response.statusCode() + " " + response.body());
-    }
-
     // ─── Signing ceremony ───────────────────────────────────────────
     // Order matters: upload signed doc → add to envelope → mark party.
     // Marking the last party auto-completes the envelope, which locks
     // it — no documents can be added after that.
 
     @Test
-    @Order(16)
+    @Order(15)
     void uploadSignedDocument() throws Exception {
         // The signing provider has collected all signatures. The plugin
         // downloads the signed copy from the provider and uploads it.
@@ -352,18 +360,19 @@ class AdvisoryAgreementScenario extends BaseScenario {
     }
 
     @Test
-    @Order(17)
+    @Order(16)
     void addSignedDocumentToEnvelope() throws Exception {
         // IMPORTANT: add the signed document BEFORE marking the signer party
-        // as signed (step 18). Marking the last party auto-completes the
+        // as signed (step 17). Marking the last party auto-completes the
         // envelope, which locks it — no more documents can be added after that.
+        // ceremony_role=output marks the resulting signed document.
         assertTrue(envelopeId > 0, "Envelope must be created first");
         assertTrue(signedDocId > 0, "Signed document must be uploaded first");
 
         HttpResponse<String> response = apiPost(token,
                 "/api/v1/signing-envelopes/" + envelopeId + "/documents",
                 String.format("""
-                {"document_id":%d,"role":"signed"}
+                {"document_id":%d,"ceremony_role":"output"}
                 """, signedDocId));
 
         assertTrue(response.statusCode() < 300,
@@ -371,7 +380,7 @@ class AdvisoryAgreementScenario extends BaseScenario {
     }
 
     @Test
-    @Order(18)
+    @Order(17)
     void markSignerPartySigned() throws Exception {
         // Idempotency: prevents double-signing if the signing provider's
         // callback fires twice. The platform returns the same response.
@@ -394,27 +403,11 @@ class AdvisoryAgreementScenario extends BaseScenario {
     }
 
     @Test
-    @Order(19)
-    void postSigningProgressComplete() throws Exception {
-        // All parties have signed. The plugin posts a final progress update
-        // so the advisor UI reflects completion.
-        assertTrue(agreementId > 0, "Agreement must be created first");
-
-        String signedAt = java.time.Instant.now().toString();
-        HttpResponse<String> response = apiPost(token,
-                "/api/v1/advice-agreements/" + agreementId + "/report-signing-progress",
-                String.format("""
-                {"substatus":"All parties signed","signing_progress":{"provider":"example-signing-provider","status":"completed","signed_count":1,"total_signers":1,"signers":[{"name":"Manual S7-AdvisoryAgreement","email":"manual-s7@example.com","status":"signed","signed_at":"%s"}]}}
-                """, signedAt));
-
-        assertTrue(response.statusCode() < 300,
-                "Update signing progress (complete) should succeed, got: " + response.statusCode() + " " + response.body());
-    }
-
-    @Test
-    @Order(20)
+    @Order(18)
     void markAgreementSigned() throws Exception {
         // Idempotency: prevents double-signing if callback fires twice.
+        // v1: mark-signed optionally accepts signed_document_id (stored in
+        // metadata for audit) and transitions pending_signature → signed.
         //
         // Plugin webhook: AdvisoryAgreement.Updated
         //   { "state": { "current": "signed", "previous": "pending_signature" } }
@@ -433,7 +426,7 @@ class AdvisoryAgreementScenario extends BaseScenario {
     }
 
     @Test
-    @Order(21)
+    @Order(19)
     void readAgreementFinal() throws Exception {
         assertTrue(agreementId > 0, "Agreement must be created first");
 

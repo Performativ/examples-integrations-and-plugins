@@ -82,7 +82,7 @@ PORTFOLIO=$(curl -s -X POST "${API}/api/v1/portfolios" \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
-    -d "{\"name\":\"Curl-S3 Portfolio\",\"client_id\":${CLIENT_ID},\"currency_id\":47}")
+    -d "{\"name\":\"Curl-S3 Portfolio\",\"client_ids\":[${CLIENT_ID}],\"currency_id\":47}")
 
 PORTFOLIO_ID=$(echo "$PORTFOLIO" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
 echo "Created Portfolio ID: ${PORTFOLIO_ID}"

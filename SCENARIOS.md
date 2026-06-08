@@ -234,6 +234,35 @@ The API uses RFC 7807 Problem Details for all error responses. Required fields: 
 
 Optional fields that may appear: `request_id`, `code`, `meta`.
 
+## S10: Financial Sync
+
+The upstream → Performativ direction a custodian/banking plugin runs on a `sync.AdviceContext` intention (hint `data_refresh`). Models a couple holding a **joint** portfolio and **joint** cash account, then discovers what Performativ already holds before writing positions and balances.
+
+Demonstrates the two equivalent discovery styles and the joint-account handling that distinguishes them:
+
+- **Batched (recommended):** one `GET /v1/portfolios?filter[client_id]=A,B` and one `GET /v1/cash-accounts?filter[client_id]=A,B` for the whole context. A joint account is returned **once** and carries `client_ids` + `is_shared`.
+- **Per-member:** one call per member via `/clients/{id}/portfolios`. A joint account is returned once **per holder**, so the caller dedups by `id`.
+
+| Step | Method | Path | Expected |
+|------|--------|------|----------|
+| List advice policies | GET | `/api/v1/advice-policies` | 200, at least one policy |
+| Create Persons A, B | POST | `/api/v1/persons` | 201 each |
+| Create Clients A, B | POST | `/api/v1/clients` | 201 each |
+| Link Persons to Clients | POST | `/api/v1/client-persons` | 201 each |
+| Create Advice Context (couple) | POST | `/api/v1/advice-contexts` | 201, two members |
+| Create joint Portfolio (A+B) | POST | `/api/v1/portfolios` | 201, `client_ids:[A,B]` |
+| Create solo Portfolio (A) | POST | `/api/v1/portfolios` | 201, `client_ids:[A]` |
+| Create joint Cash Account (A+B) | POST | `/api/v1/cash-accounts` | 201, `client_ids:[A,B]` |
+| Resolve members | GET | `/api/v1/advice-contexts/{id}?include=members` | 200, two `members[].client_id` |
+| Batched discovery (portfolios) | GET | `/api/v1/portfolios?filter[client_id]=A,B&include=clients` | 200, joint once, `is_shared=true`, `client_ids=[A,B]`; solo `is_shared=false` |
+| Batched discovery (cash accounts) | GET | `/api/v1/cash-accounts?filter[client_id]=A,B&include=clients` | 200, joint once, `is_shared=true` |
+| Per-member discovery | GET | `/api/v1/clients/{id}/portfolios` | 200, joint returned once per holder (dedup needed) |
+| Write positions per portfolio | POST | `/api/v1/external-positions/batch/replace` | < 300, one call per portfolio |
+| Write balances (one call) | POST | `/api/v1/external-balances/batch/upsert` | < 300, all cash accounts |
+| Verify positions readable | GET | `/api/v1/external-positions?filter[portfolio_id]={id}` | 200, `data` non-empty |
+
+Cleanup: clear batch-written slices (replace positions with empty set; delete external balances by id), then delete cash account → portfolios → advice context → clients → persons.
+
 ## Test data conventions
 
 Each implementation uses a distinct prefix to avoid collisions when running in parallel:

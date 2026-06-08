@@ -33,6 +33,7 @@ scenario_file() {
         s7) echo "advisory-agreement" ;;
         s8) echo "start-advise" ;;
         s9) echo "error-responses" ;;
+        s10) echo "financial-sync" ;;
         *)  echo "" ;;
     esac
 }
@@ -50,6 +51,7 @@ scenario_class() {
         s7) echo "AdvisoryAgreementScenario" ;;
         s8) echo "StartAdviseScenario" ;;
         s9) echo "ErrorResponsesScenario" ;;
+        s10) echo "FinancialSyncScenario" ;;
         *)  echo "" ;;
     esac
 }

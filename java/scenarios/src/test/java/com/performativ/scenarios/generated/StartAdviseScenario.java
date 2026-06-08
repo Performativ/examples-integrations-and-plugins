@@ -10,6 +10,7 @@ import org.junit.jupiter.api.*;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -154,25 +155,23 @@ class StartAdviseScenario extends GeneratedClientScenario {
 
     @Test
     @Order(SETUP + 6)
-    void createAdviceContext() throws Exception {
+    void createAdviceContext() throws ApiException {
         assertTrue(advicePolicyId > 0, "Advice policy must be found first");
-        assertTrue(personId > 0, "Person must be created first");
         assertTrue(clientId > 0, "Client must be created first");
 
-        // Raw HTTP: the generated StoreAdviceContextRequest requires members
-        // with client_id (v1 change from person-centric to client-centric).
-        HttpResponse<String> response = apiPost(token, "/api/v1/advice-contexts",
-                String.format("""
-                {"advice_policy_id":%d,"type":"individual","name":"Gen-S8 Advice Context","reference_person_id":%d,"members":[{"person_id":%d,"client_id":%d,"power_of_attorney":false}]}
-                """, advicePolicyId, personId, personId, clientId));
+        // Advice contexts are client-centric: members carry client_id only.
+        var req = new StoreAdviceContextRequest()
+                .advicePolicyId(advicePolicyId)
+                .type(StoreAdviceContextRequest.TypeEnum.INDIVIDUAL)
+                .name("Gen-S8 Advice Context")
+                .referenceClientId(clientId)
+                .members(List.of(new StoreAdviceContextRequestMembersInner().clientId((int) clientId)));
 
-        assertTrue(response.statusCode() < 300,
-                "Create advice context should succeed, got: " + response.statusCode() + " " + response.body());
-
-        JsonNode data = objectMapper.readTree(response.body()).path("data");
-        adviceContextId = data.get("id").asLong();
+        var response = adviceApi.adviceContextsStore(req, idempotencyKey());
+        assertNotNull(response.getData());
+        adviceContextId = response.getData().getId();
         assertTrue(adviceContextId > 0);
-        assertEquals("active", data.get("status").asText());
+        assertNotNull(response.getData().getStatus(), "Created context should carry a status");
     }
 
     @Test

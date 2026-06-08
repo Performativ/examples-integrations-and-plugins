@@ -53802,10 +53802,11 @@
                     {
                         "name": "filter[client_id]",
                         "in": "query",
-                        "description": "Filter by client ID",
+                        "description": "Filter by client ID. Accepts a comma-separated list (e.g. all members of an advice context); joint portfolios shared across the listed clients are returned once.",
                         "schema": {
                             "type": "string"
-                        }
+                        },
+                        "example": "123,456"
                     },
                     {
                         "name": "filter[currency_id]",
@@ -54571,10 +54572,11 @@
                     {
                         "name": "filter[client_id]",
                         "in": "query",
-                        "description": "Filter by client ID",
+                        "description": "Filter by client ID. Accepts a comma-separated list (e.g. all members of an advice context); joint accounts shared across the listed clients are returned once.",
                         "schema": {
                             "type": "string"
-                        }
+                        },
+                        "example": "123,456"
                     },
                     {
                         "name": "filter[currency_id]",
@@ -57357,10 +57359,11 @@
                     {
                         "name": "filter[client_id]",
                         "in": "query",
-                        "description": "Filter by client ID",
+                        "description": "Filter by client ID. Accepts a comma-separated list (e.g. all members of an advice context); joint accounts shared across the listed clients are returned once.",
                         "schema": {
                             "type": "string"
-                        }
+                        },
+                        "example": "123,456"
                     },
                     {
                         "name": "filter[currency_id]",
@@ -57604,10 +57607,11 @@
                     {
                         "name": "filter[client_id]",
                         "in": "query",
-                        "description": "Filter by client ID",
+                        "description": "Filter by client ID. Accepts a comma-separated list (e.g. all members of an advice context); joint portfolios shared across the listed clients are returned once.",
                         "schema": {
                             "type": "string"
-                        }
+                        },
+                        "example": "123,456"
                     },
                     {
                         "name": "filter[currency_id]",
@@ -76606,6 +76610,50 @@
                 }
             }
         },
+        "/v1/comms/sender-domains": {
+            "get": {
+                "operationId": "v1.comms.sender-domains.get",
+                "tags": [
+                    "Comms"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {}
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Error401"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/Error403"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/Error404"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/Error422"
+                    },
+                    "500": {
+                        "$ref": "#/components/responses/Error500"
+                    }
+                }
+            }
+        },
         "/v1/threads/{thread_id}/messages": {
             "get": {
                 "operationId": "v1.messages.index",
@@ -80868,6 +80916,24 @@
                             "null"
                         ],
                         "format": "date-time"
+                    },
+                    "client_ids": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "description": "IDs of every client linked to this account. Present when the clients relation is loaded (auto-included when filtering by client_id, always present on show).",
+                        "items": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    "is_shared": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ],
+                        "description": "Whether this account is held jointly by more than one client. Present when the clients relation is loaded."
                     },
                     "clients": {
                         "type": "array",
@@ -89279,6 +89345,24 @@
                         ],
                         "format": "int64",
                         "description": "First scoped client id when clients loaded; else lowest linked client id"
+                    },
+                    "client_ids": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "description": "IDs of every client linked to this portfolio. Present when the clients relation is loaded (auto-included when filtering by client_id, always present on show).",
+                        "items": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    "is_shared": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ],
+                        "description": "Whether this portfolio is held jointly by more than one client. Present when the clients relation is loaded."
                     },
                     "clients": {
                         "type": "array",

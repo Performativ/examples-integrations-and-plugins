@@ -85421,10 +85421,20 @@
                         "format": "int64"
                     },
                     "portfolio_ids": {
-                        "type": "string"
+                        "type": "array",
+                        "description": "Portfolio IDs linked to this group-client row",
+                        "items": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
                     },
                     "cash_account_ids": {
-                        "type": "string"
+                        "type": "array",
+                        "description": "Cash account IDs linked to this group-client row",
+                        "items": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
                     },
                     "group": {
                         "$ref": "#/components/schemas/GroupResource"
@@ -85475,13 +85485,20 @@
                         ]
                     },
                     "excluded_instrument_ids": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
+                        "type": "array",
+                        "description": "Instrument IDs excluded from this group",
+                        "items": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
                     },
                     "client_ids": {
-                        "type": "string"
+                        "type": "array",
+                        "description": "Client IDs in this group",
+                        "items": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
                     },
                     "created_at": {
                         "type": [

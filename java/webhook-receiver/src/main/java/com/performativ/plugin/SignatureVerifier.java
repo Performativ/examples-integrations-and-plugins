@@ -30,8 +30,12 @@ import java.util.HexFormat;
  *
  * <p>The verifier also rejects deliveries whose timestamp is more than
  * {@link #FRESHNESS_WINDOW_SECONDS} seconds away from the receiver's own clock.
- * This prevents a captured {@code (timestamp, body, signature)} tuple from
- * being replayed outside the freshness window.
+ * Note what that timestamp is: the moment the delivery was <em>enqueued</em>, not
+ * the moment it was sent. It does not change when a delivery is retried, and the
+ * platform retries a failing delivery over roughly 24 hours. A window tight enough
+ * to be useful against replay would therefore reject every retry — that is, exactly
+ * the deliveries that follow a failure. Treat the window as a coarse backstop
+ * against very old captures, and use delivery-id idempotency as the real defence.
  *
  * <p>Usage:
  * <pre>{@code
@@ -44,11 +48,16 @@ public final class SignatureVerifier {
     private static final String HMAC_SHA256 = "HmacSHA256";
 
     /**
-     * Freshness window in seconds. A delivery whose {@code x-webhook-timestamp}
-     * is more than this many seconds away from the receiver's clock (in either
-     * direction) is rejected. Five minutes is the recommended default.
+     * Freshness window in seconds. A delivery whose {@code x-webhook-timestamp} is
+     * more than this many seconds away from the receiver's clock (in either
+     * direction) is rejected.
+     *
+     * <p>26 hours: the platform's retry schedule runs eight attempts over roughly
+     * 24 hours, and every attempt carries the original enqueue timestamp. The extra
+     * two hours absorb clock skew and queue delay. Shorten this only if you have
+     * confirmed you do not need retried deliveries.
      */
-    public static final long FRESHNESS_WINDOW_SECONDS = 300L;
+    public static final long FRESHNESS_WINDOW_SECONDS = 26L * 60L * 60L;
 
     private final byte[] keyBytes;
     private final Clock clock;

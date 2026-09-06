@@ -72,9 +72,11 @@ signature = HMAC-SHA256(signing_key, "{x-webhook-timestamp}.{raw_body}")
 
 Both the timestamp and the hex-encoded signature are sent on every delivery, in the `x-webhook-timestamp` and `x-webhook-signature` headers. The receiver recomputes the HMAC using the same inputs and compares it to the header value.
 
-Prepending the timestamp to the signed content is what makes the scheme resistant to **replay attacks**: a receiver that enforces a freshness window rejects any delivery whose timestamp is more than N seconds away from its own clock. A captured `(timestamp, body, signature)` tuple becomes worthless outside that window.
+Prepending the timestamp binds the signature to one delivery, so a captured `(timestamp, body, signature)` tuple cannot be re-signed onto a different body.
 
-A five-minute freshness window is the recommended default and is what the examples in this repository use. It is tight enough to bound the replay risk and loose enough to tolerate normal clock skew between the sender and the receiver.
+**On freshness windows.** `x-webhook-timestamp` is the moment the delivery was *enqueued*, not the moment it was sent, and it does not change when a delivery is retried. A failing delivery is retried eight times over roughly 24 hours, so a short window would reject every retry — exactly the deliveries that follow a failure.
+
+The examples here use **26 hours**: long enough to cover the full retry schedule plus clock skew. That is a backstop against very old captures, not meaningful replay protection. **Your real defence against replay is idempotency** — record the delivery id and ignore one you have already processed. See [Idempotency](#idempotency) below.
 
 ### Java Example
 
@@ -90,13 +92,13 @@ if (!valid) {
 }
 ```
 
-`SignatureVerifier` checks four things in order: the signature header is present, the timestamp header is present and parseable, the timestamp is inside the five-minute freshness window, and the HMAC of `{timestamp}.{raw_body}` matches the header value (via constant-time comparison). If any of those fails, it returns `false`.
+`SignatureVerifier` checks four things in order: the signature header is present, the timestamp header is present and parseable, the timestamp is inside the freshness window, and the HMAC of `{timestamp}.{raw_body}` matches the header value (via constant-time comparison). If any of those fails, it returns `false`.
 
 ### Manual Verification (Any Language)
 
 ```
-if abs(now_epoch_seconds - int(timestamp_header)) > 300:
-    reject                                          # replay window exceeded
+if abs(now_epoch_seconds - int(timestamp_header)) > 93600:   # 26h, covers retries
+    reject                                          # outside the freshness window
 signed_content = timestamp_header + "." + raw_body  # concatenate bytes, no re-serialise
 expected       = HMAC-SHA256(signing_key, signed_content)
 actual         = request.headers["x-webhook-signature"]
@@ -107,6 +109,7 @@ Important:
 - Read the **raw request body bytes** before any JSON parsing. Re-serialising the body produces a different hash even when semantically equivalent.
 - Use **constant-time comparison** to prevent timing attacks.
 - Enforce the freshness window before computing the HMAC. A delivery with a stale timestamp should be rejected even if the signature would otherwise have matched.
+- Do not shorten the window below the retry horizon (~24h) unless you are certain you do not need retried deliveries. Use delivery-id idempotency for replay protection instead.
 - If neither `x-webhook-timestamp` nor `x-webhook-signature` is present, the webhook is unsigned (this is valid only when no signing key is configured for the plugin).
 
 ## Idempotency

@@ -58,6 +58,20 @@ class SignatureVerifierTest {
     }
 
     @Test
+    void lateRetry_enqueuedADayAgo_stillAccepts() {
+        // The platform retries a failing delivery eight times over roughly 24 hours,
+        // and every attempt carries the ORIGINAL enqueue timestamp. A window shorter
+        // than that horizon would reject every retry — the deliveries that follow a
+        // failure, and the ones a receiver can least afford to drop.
+        long now = 1_700_000_000L;
+        SignatureVerifier verifier = verifierAt(now);
+        String timestamp = Long.toString(now - (23L * 60L * 60L));
+        String signature = verifier.sign(timestamp, BODY);
+
+        assertTrue(verifier.verify(BODY, timestamp, signature));
+    }
+
+    @Test
     void futureTimestamp_beyondFreshnessWindow_rejects() {
         long now = 1_700_000_000L;
         SignatureVerifier verifier = verifierAt(now);

@@ -29,7 +29,8 @@ Every webhook request includes these headers:
 | `x-tenant` | Yes | Tenant identifier (lowercase) |
 | `x-api-domain` | Yes | API domain for the tenant |
 | `x-tenant-reference-id` | No | Your reference ID (if configured) |
-| `x-webhook-signature` | No | HMAC-SHA256 signature (if signing key is configured) |
+| `x-webhook-timestamp` | Yes (when signing is enabled) | Unix epoch seconds at which the delivery was enqueued. Required for signature verification. |
+| `x-webhook-signature` | Yes (when signing is enabled) | Hex-encoded `HMAC_SHA256(signing_key, "{timestamp}.{raw_body}")` |
 
 ## Payload Structure
 
@@ -63,9 +64,19 @@ All webhook payloads follow this schema:
 
 ### How It Works
 
-1. Performativ computes HMAC-SHA256 of the JSON request body using your signing key
-2. The hex-encoded signature is sent in the `x-webhook-signature` header
-3. Your endpoint recomputes the HMAC and compares it to the header value
+Performativ signs each delivery with HMAC-SHA256 over the delivery timestamp, a literal `.` separator, and the raw JSON request body, in that exact order:
+
+```
+signature = HMAC-SHA256(signing_key, "{x-webhook-timestamp}.{raw_body}")
+```
+
+Both the timestamp and the hex-encoded signature are sent on every delivery, in the `x-webhook-timestamp` and `x-webhook-signature` headers. The receiver recomputes the HMAC using the same inputs and compares it to the header value.
+
+Prepending the timestamp binds the signature to one delivery, so a captured `(timestamp, body, signature)` tuple cannot be re-signed onto a different body.
+
+**On freshness windows.** `x-webhook-timestamp` is the moment the delivery was *enqueued*, not the moment it was sent, and it does not change when a delivery is retried. A failing delivery is retried eight times over roughly 24 hours, so a short window would reject every retry — exactly the deliveries that follow a failure.
+
+The examples here use **26 hours**: long enough to cover the full retry schedule plus clock skew. That is a backstop against very old captures, not meaningful replay protection. **Your real defence against replay is idempotency** — record the delivery id and ignore one you have already processed. See [Idempotency](#idempotency) below.
 
 ### Java Example
 
@@ -75,24 +86,31 @@ import com.performativ.plugin.SignatureVerifier;
 SignatureVerifier verifier = new SignatureVerifier("your-signing-key");
 
 // In your controller:
-boolean valid = verifier.verify(rawRequestBodyBytes, signatureHeader);
+boolean valid = verifier.verify(rawRequestBodyBytes, timestampHeader, signatureHeader);
 if (!valid) {
     return ResponseEntity.status(401).body("Invalid signature");
 }
 ```
 
+`SignatureVerifier` checks four things in order: the signature header is present, the timestamp header is present and parseable, the timestamp is inside the freshness window, and the HMAC of `{timestamp}.{raw_body}` matches the header value (via constant-time comparison). If any of those fails, it returns `false`.
+
 ### Manual Verification (Any Language)
 
 ```
-expected = HMAC-SHA256(signing_key, raw_json_body)
-actual   = request.headers["x-webhook-signature"]
-valid    = constant_time_equals(hex(expected), actual)
+if abs(now_epoch_seconds - int(timestamp_header)) > 93600:   # 26h, covers retries
+    reject                                          # outside the freshness window
+signed_content = timestamp_header + "." + raw_body  # concatenate bytes, no re-serialise
+expected       = HMAC-SHA256(signing_key, signed_content)
+actual         = request.headers["x-webhook-signature"]
+valid          = constant_time_equals(hex(expected), actual)
 ```
 
 Important:
-- Compute the HMAC on the **raw request body bytes**, not on a re-serialized JSON object
-- Use **constant-time comparison** to prevent timing attacks
-- If the `x-webhook-signature` header is absent, the webhook is unsigned (this is valid when no signing key is configured)
+- Read the **raw request body bytes** before any JSON parsing. Re-serialising the body produces a different hash even when semantically equivalent.
+- Use **constant-time comparison** to prevent timing attacks.
+- Enforce the freshness window before computing the HMAC. A delivery with a stale timestamp should be rejected even if the signature would otherwise have matched.
+- Do not shorten the window below the retry horizon (~24h) unless you are certain you do not need retried deliveries. Use delivery-id idempotency for replay protection instead.
+- If neither `x-webhook-timestamp` nor `x-webhook-signature` is present, the webhook is unsigned (this is valid only when no signing key is configured for the plugin).
 
 ## Idempotency
 

@@ -62,21 +62,25 @@ public class WebhookController {
      *
      * <h4>Headers</h4>
      * <ul>
-     *   <li>{@code x-webhook-signature} - HMAC-SHA256 hex signature (optional)</li>
-     *   <li>{@code x-tenant} - Tenant identifier</li>
-     *   <li>{@code x-api-domain} - API domain for the tenant</li>
-     *   <li>{@code x-tenant-reference-id} - Your reference ID (optional)</li>
+     *   <li>{@code x-webhook-timestamp}: Unix epoch seconds at which the delivery
+     *       was enqueued. Used for replay protection.</li>
+     *   <li>{@code x-webhook-signature}: HMAC-SHA256 hex signature over
+     *       {@code "{timestamp}.{raw_body}"}.</li>
+     *   <li>{@code x-tenant}: Tenant identifier.</li>
+     *   <li>{@code x-api-domain}: API domain for the tenant.</li>
+     *   <li>{@code x-tenant-reference-id}: Your reference ID (optional).</li>
      * </ul>
      */
     @PostMapping
     public ResponseEntity<Map<String, String>> receiveWebhook(
             @RequestBody byte[] body,
+            @RequestHeader(value = "x-webhook-timestamp", required = false) String timestamp,
             @RequestHeader(value = "x-webhook-signature", required = false) String signature,
             @RequestHeader(value = "x-tenant", required = false) String tenant,
             @RequestHeader(value = "x-api-domain", required = false) String apiDomain) {
 
-        // Step 1: Verify signature
-        if (verifier != null && !verifier.verify(body, signature)) {
+        // Step 1: Verify signature (timestamp + body signed together).
+        if (verifier != null && !verifier.verify(body, timestamp, signature)) {
             log.warn("Invalid webhook signature from tenant={}", tenant);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Invalid signature"));
